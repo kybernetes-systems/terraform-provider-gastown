@@ -110,7 +110,29 @@ func TestHQResource_Read_idempotent(t *testing.T) {
 	}
 }
 
-// Test 3: Delete calls gt uninstall --force (state is cleared).
+// Test 3: path attribute has RequiresReplace (ForceNew) plan modifier.
+func TestHQResource_ForceNew_onPathChange(t *testing.T) {
+	r := newHQ()
+	var schemaResp resource.SchemaResponse
+	r.Schema(context.Background(), resource.SchemaRequest{}, &schemaResp)
+
+	attr, ok := schemaResp.Schema.Attributes["path"]
+	if !ok {
+		t.Fatal("schema missing path attribute")
+	}
+	sa, ok := attr.(schema.StringAttribute)
+	if !ok {
+		t.Fatalf("path should be StringAttribute, got %T", attr)
+	}
+	if !sa.Required {
+		t.Fatal("path should be Required")
+	}
+	if len(sa.PlanModifiers) == 0 {
+		t.Fatal("path should have plan modifiers (RequiresReplace)")
+	}
+}
+
+// Test 4: Delete calls gt uninstall --force (state is cleared).
 func TestHQResource_Delete_callsUninstall(t *testing.T) {
 	dir := t.TempDir()
 	hqPath := filepath.Join(dir, "gt")
