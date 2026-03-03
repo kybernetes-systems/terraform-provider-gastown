@@ -34,6 +34,7 @@ func (r *runner) BD(ctx context.Context, args ...string) (string, error) {
 func run(ctx context.Context, bin, hqPath string, args []string) (string, error) {
 	cmd := exec.CommandContext(ctx, bin, args...)
 	if hqPath != "" {
+		cmd.Dir = hqPath
 		cmd.Env = append(cmd.Environ(), "GT_TOWN_ROOT="+hqPath)
 	}
 	var combined bytes.Buffer

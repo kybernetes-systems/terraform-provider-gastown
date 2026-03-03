@@ -98,7 +98,9 @@ func (r *HQResource) Create(ctx context.Context, req resource.CreateRequest, res
 
 	runner := r.runner
 	if runner == nil {
-		runner = tfexec.NewRunner(plan.Path.ValueString())
+		// GT_TOWN_ROOT must not point to a non-existent path; gt install
+		// takes the path as an explicit argument.
+		runner = tfexec.NewRunner("")
 	}
 	if _, err := runner.GT(ctx, args...); err != nil {
 		resp.Diagnostics.AddError("Error creating HQ", err.Error())
