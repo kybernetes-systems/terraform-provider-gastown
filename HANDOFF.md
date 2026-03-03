@@ -1,21 +1,21 @@
 # Handoff
 
-## Session Summary (Monday, March 2, 2026)
+## Current Status
+We have worked on Phase 6: Integration & acceptance suite (`tfgt-39c`).
 
-- Completed Phase 5: Implemented the `gastown_crew` resource and its corresponding tests. Tests passed and the task `tfgt-iqx` was closed.
-- Started Phase 6: Began writing the integration and acceptance test suite for the provider (`tfgt-39c`).
-- Setup a mocked `gt` binary in the acceptance tests to simulate gas town infrastructure without needing remote GitHub repositories or relying on the local environment having `gt` properly configured with internet access.
-- Wrote tests for `FullLifecycle`, `DriftScenario`, and `Concurrency` for the `gastown` provider.
-- Created `internal/testutil/git-server.go` to support tests but later decided to mock `gt` directly instead. This file was left in the repository.
+The unit tests for resources and provider configuration have been completed and are passing.
+However, the Terraform acceptance tests (run with `TF_ACC=1 go test ./internal/provider/... -run TestAcc -v`) are currently failing.
 
-## Remaining Work
+## Blockers / Next Steps
+The main issue blocking the acceptance tests is that the `gastown_rig` resource under test calls `gt rig add <name> <repo-url>`, but the real `gt` CLI validation rejects local `file://` repository schemas (it only accepts remote URLs like `https://`, `git@`, etc.).
 
-Acceptance tests currently fail because the `gastown_rig` resource returns an unknown value for the `prefix` attribute after an apply operation. Additionally, the post-test destroy operation fails due to the Dolt circuit breaker being open, likely because of the teardown process not cleanly stopping the mocked services.
+To resolve this, the next agent needs to:
+1. Figure out a way to bypass the `gt rig add` git URL validation during acceptance tests. This could involve:
+    - Setting up a more robust `gt` mock script in the test setup that perfectly intercepts the `gt rig add` command.
+    - Hosting a local `git` daemon (HTTP/SSH) during the tests to provide a valid remote URL structure.
+    - Modifying the underlying `gt` validation logic (if possible/applicable) to support local testing repositories.
+2. Complete the full lifecycle, drift, and concurrency acceptance tests.
 
-- Fix `gastown_rig` to properly determine and set the `prefix` state upon resource creation/reading.
-- Investigate and resolve the Dolt circuit breaker issue occurring during acceptance test teardowns.
-- Once fixed, run the acceptance tests (`TF_ACC=1 go test ./internal/provider/... -v -run TestAcc`) to ensure everything passes.
-- After tests pass, complete Phase 6 and close task `tfgt-39c`.
-- Proceed to Phase 7: Documentation & release (`tfgt-0r4`).
-
-A new issue has been tracked to cover these fixes: `tfgt-om9` ("Fix gastown_rig prefix and Dolt test errors").
+## Available Work
+- Issue `tfgt-39c`: Phase 6: Integration & acceptance suite (IN PROGRESS)
+- Continue working on the acceptance test suite and resolving the Git URL blocker.
