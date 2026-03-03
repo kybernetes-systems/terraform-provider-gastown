@@ -3,6 +3,7 @@ package crew
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -114,6 +115,11 @@ func (r *CrewResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	var state crewModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if _, err := os.Stat(state.HQPath.ValueString()); os.IsNotExist(err) {
+		resp.State.RemoveResource(ctx)
 		return
 	}
 

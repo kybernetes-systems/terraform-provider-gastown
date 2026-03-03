@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 )
 
@@ -34,7 +35,9 @@ func (r *runner) BD(ctx context.Context, args ...string) (string, error) {
 func run(ctx context.Context, bin, hqPath string, args []string) (string, error) {
 	cmd := exec.CommandContext(ctx, bin, args...)
 	if hqPath != "" {
-		cmd.Dir = hqPath
+		if _, err := os.Stat(hqPath); err == nil {
+			cmd.Dir = hqPath
+		}
 		cmd.Env = append(cmd.Environ(), "GT_TOWN_ROOT="+hqPath)
 	}
 	var combined bytes.Buffer

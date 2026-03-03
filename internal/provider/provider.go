@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	tfexec "github.com/kybernetes-systems/terraform-provider-gastown/internal/exec"
 	"github.com/kybernetes-systems/terraform-provider-gastown/internal/gastown/crew"
 	"github.com/kybernetes-systems/terraform-provider-gastown/internal/gastown/hq"
 	"github.com/kybernetes-systems/terraform-provider-gastown/internal/gastown/rig"
@@ -57,7 +58,12 @@ func (p *GastownProvider) Configure(ctx context.Context, req provider.ConfigureR
 			"Missing HQ path",
 			"hq_path must be set to the Gas Town HQ directory.",
 		))
+		return
 	}
+
+	runner := tfexec.NewRunner(config.HQPath.ValueString())
+	resp.DataSourceData = runner
+	resp.ResourceData = runner
 }
 
 func (p *GastownProvider) Resources(_ context.Context) []func() resource.Resource {

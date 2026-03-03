@@ -22,19 +22,21 @@ func buildHQConfig(t *testing.T, r resource.Resource, attrs map[string]tftypes.V
 	r.Schema(context.Background(), resource.SchemaRequest{}, &schemaResp)
 
 	attrTypes := make(map[string]tftypes.Type)
-	for k := range schemaResp.Schema.Attributes {
-		switch schemaResp.Schema.Attributes[k].(type) {
+	for k, attr := range schemaResp.Schema.Attributes {
+		switch attr.(type) {
 		case schema.StringAttribute:
 			attrTypes[k] = tftypes.String
 		case schema.BoolAttribute:
 			attrTypes[k] = tftypes.Bool
+		}
+		if _, ok := attrs[k]; !ok {
+			attrs[k] = tftypes.NewValue(attrTypes[k], nil)
 		}
 	}
 
 	raw := tftypes.NewValue(tftypes.Object{AttributeTypes: attrTypes}, attrs)
 	return tfsdk.Config{Raw: raw, Schema: schemaResp.Schema}
 }
-
 // Test 1: Create calls gt install and mayor/town.json exists afterwards.
 func TestHQResource_Create_callsGtInstall(t *testing.T) {
 	dir := t.TempDir()
@@ -45,6 +47,7 @@ func TestHQResource_Create_callsGtInstall(t *testing.T) {
 		"path":        tftypes.NewValue(tftypes.String, hqPath),
 		"owner_email": tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
 		"git":         tftypes.NewValue(tftypes.Bool, true),
+		"no_beads":    tftypes.NewValue(tftypes.Bool, false),
 		"id":          tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
 		"name":        tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
 	})
@@ -75,6 +78,7 @@ func TestHQResource_Read_idempotent(t *testing.T) {
 		"path":        tftypes.NewValue(tftypes.String, hqPath),
 		"owner_email": tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
 		"git":         tftypes.NewValue(tftypes.Bool, true),
+		"no_beads":    tftypes.NewValue(tftypes.Bool, false),
 		"id":          tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
 		"name":        tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
 	})
@@ -142,6 +146,7 @@ func TestHQResource_Delete_callsUninstall(t *testing.T) {
 		"path":        tftypes.NewValue(tftypes.String, hqPath),
 		"owner_email": tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
 		"git":         tftypes.NewValue(tftypes.Bool, true),
+		"no_beads":    tftypes.NewValue(tftypes.Bool, false),
 		"id":          tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
 		"name":        tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
 	})
