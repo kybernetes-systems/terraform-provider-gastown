@@ -6,9 +6,18 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 	ourprovider "github.com/kybernetes-systems/terraform-provider-gastown/internal/provider"
+)
+
+var (
+	TestAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
+		"gastown": providerserver.NewProtocol6WithError(ourprovider.New("test")()),
+	}
 )
 
 func newProvider(t *testing.T) provider.Provider {
@@ -63,5 +72,31 @@ func TestProvider_registers_three_resources(t *testing.T) {
 	resources := p.Resources(context.Background())
 	if len(resources) != 3 {
 		t.Fatalf("expected 3 registered resources, got %d", len(resources))
+	}
+}
+
+func TestHQ_Schema_NoBeads(t *testing.T) {
+	p := newProvider(t)
+	resources := p.Resources(context.Background())
+	var hqRes resource.Resource
+	for _, rFunc := range resources {
+		r := rFunc()
+		var metadataResp resource.MetadataResponse
+		r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "gastown"}, &metadataResp)
+		if metadataResp.TypeName == "gastown_hq" {
+			hqRes = r
+			break
+		}
+	}
+
+	if hqRes == nil {
+		t.Fatal("gastown_hq resource not found")
+	}
+
+	var schemaResp resource.SchemaResponse
+	hqRes.Schema(context.Background(), resource.SchemaRequest{}, &schemaResp)
+
+	if _, ok := schemaResp.Schema.Attributes["no_beads"]; !ok {
+		t.Fatal("gastown_hq schema missing no_beads attribute")
 	}
 }
