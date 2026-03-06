@@ -2,7 +2,6 @@ package rig
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -230,20 +229,6 @@ func (r *RigResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 	if _, err := runner.GT(ctx, "rig", "dock", state.Name.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Error docking rig", err.Error())
 	}
-}
-
-func derivePrefix(hqPath, rigName string) (string, error) {
-	townData, err := os.ReadFile(filepath.Join(hqPath, "mayor", "town.json"))
-	if err != nil {
-		return "", err
-	}
-	var town struct {
-		Name string `json:"name"`
-	}
-	if err := json.Unmarshal(townData, &town); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s-rig-%s", town.Name, rigName), nil
 }
 
 func getPrefixFromGT(ctx context.Context, runner tfexec.Runner, rigName string) (string, error) {

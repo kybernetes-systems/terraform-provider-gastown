@@ -56,7 +56,7 @@ func TestHQResource_Create_callsGtInstall(t *testing.T) {
 	var resp resource.CreateResponse
 	resp.State = state
 
-	r.Create(context.Background(), resource.CreateRequest{Config: cfg, Plan: tfsdk.Plan{Raw: cfg.Raw, Schema: cfg.Schema}}, &resp)
+	r.Create(context.Background(), resource.CreateRequest{Config: cfg, Plan: tfsdk.Plan(cfg)}, &resp)
 
 	if resp.Diagnostics.HasError() {
 		t.Fatalf("Create returned errors: %v", resp.Diagnostics)
@@ -87,7 +87,7 @@ func TestHQResource_Read_idempotent(t *testing.T) {
 
 	var createResp resource.CreateResponse
 	createResp.State = emptyState
-	r.Create(context.Background(), resource.CreateRequest{Config: cfg, Plan: tfsdk.Plan{Raw: cfg.Raw, Schema: cfg.Schema}}, &createResp)
+	r.Create(context.Background(), resource.CreateRequest{Config: cfg, Plan: tfsdk.Plan(cfg)}, &createResp)
 	if createResp.Diagnostics.HasError() {
 		t.Fatalf("Create failed: %v", createResp.Diagnostics)
 	}
@@ -154,7 +154,7 @@ func TestHQResource_Delete_callsUninstall(t *testing.T) {
 	emptyState := tfsdk.State{Raw: tftypes.NewValue(cfg.Raw.Type(), nil), Schema: cfg.Schema}
 	var createResp resource.CreateResponse
 	createResp.State = emptyState
-	r.Create(context.Background(), resource.CreateRequest{Config: cfg, Plan: tfsdk.Plan{Raw: cfg.Raw, Schema: cfg.Schema}}, &createResp)
+	r.Create(context.Background(), resource.CreateRequest{Config: cfg, Plan: tfsdk.Plan(cfg)}, &createResp)
 	if createResp.Diagnostics.HasError() {
 		t.Fatalf("Create failed: %v", createResp.Diagnostics)
 	}
