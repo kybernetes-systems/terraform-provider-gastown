@@ -1,0 +1,1 @@
+{"author":"Phil Mocek","created_at":"2026-03-03T06:15:07Z","id":1,"issue_id":"tfgt-39c","text":"Acceptance tests are failing because 'gt rig add' rejects the 'file://' git URL schema for test repos. We need to either mock 'gt' better in acceptance tests, run a local git HTTP/SSH server during tests, or update 'gt' to allow 'file://' schemas or '--adopt' for local testing."}
