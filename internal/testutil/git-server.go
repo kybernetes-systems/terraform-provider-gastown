@@ -1,3 +1,9 @@
+//go:build ignore
+// +build ignore
+
+// This file is a standalone tool for testing, not part of the testutil package.
+// Run with: go run git-server.go <port> <repos_dir>
+
 package main
 
 import (

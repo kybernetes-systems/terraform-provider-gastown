@@ -134,6 +134,15 @@ func (r *RigResource) Create(ctx context.Context, req resource.CreateRequest, re
 		}
 	}
 
+	// Set max_polecats to prevent test rigs from spawning workers (ADR 0011)
+	if !plan.MaxPolecats.IsNull() && !plan.MaxPolecats.IsUnknown() {
+		maxPolecats := fmt.Sprintf("%d", plan.MaxPolecats.ValueInt64())
+		if _, err := runner.GT(ctx, "rig", "config", "set", plan.Name.ValueString(), "max_polecats", maxPolecats); err != nil {
+			resp.Diagnostics.AddError("Error setting rig max_polecats", err.Error())
+			return
+		}
+	}
+
 	plan.ID = types.StringValue(filepath.Join(plan.HQPath.ValueString(), plan.Name.ValueString()))
 	plan.Status = types.StringValue("operational")
 
