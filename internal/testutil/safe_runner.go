@@ -5,6 +5,9 @@ package testutil
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -50,6 +53,11 @@ func (r *SafeRunner) GT(ctx context.Context, args ...string) (string, error) {
 // BD executes a bd command.
 func (r *SafeRunner) BD(ctx context.Context, args ...string) (string, error) {
 	return r.inner.BD(ctx, args...)
+}
+
+// HQPath returns the HQ path from the inner runner.
+func (r *SafeRunner) HQPath() string {
+	return r.inner.HQPath()
 }
 
 // AssertNoPolecat verifies that a rig has no running polecats.
@@ -140,4 +148,175 @@ func parsePolecatCount(output string) int {
 	}
 
 	return 0
+}
+
+// daemonProcess represents a Gas Town daemon process found during cleanup.
+type daemonProcess struct {
+	pid  string
+	role string // mayor, deacon, boot, witness
+	cwd  string
+}
+
+// findTestDaemons finds Claude processes running from test directories.
+func findTestDaemons(hqPath string) []daemonProcess {
+	var daemons []daemonProcess
+
+	// Look for claude processes with CWD under this HQ path
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return daemons
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		pid := entry.Name()
+		if _, err := strconv.Atoi(pid); err != nil {
+			continue
+		}
+
+		// Read the CWD symlink
+		cwd, err := os.Readlink(filepath.Join("/proc", pid, "cwd"))
+		if err != nil {
+			continue
+		}
+
+		// Check if this process is running from our test HQ
+		if !strings.HasPrefix(cwd, hqPath) {
+			continue
+		}
+
+		// Read the command line to determine role
+		cmdlineBytes, err := os.ReadFile(filepath.Join("/proc", pid, "cmdline"))
+		if err != nil {
+			continue
+		}
+		cmdline := string(cmdlineBytes)
+
+		// Check if it's a claude process with Gas Town role
+		if !strings.Contains(cmdline, "GAS TOWN") {
+			continue
+		}
+
+		// Determine role
+		role := "unknown"
+		if strings.Contains(cmdline, "mayor") {
+			role = "mayor"
+		} else if strings.Contains(cmdline, "deacon") {
+			role = "deacon"
+		} else if strings.Contains(cmdline, "boot") {
+			role = "boot"
+		} else if strings.Contains(cmdline, "witness") {
+			role = "witness"
+		} else if strings.Contains(cmdline, "polecat") {
+			role = "polecat"
+		}
+
+		daemons = append(daemons, daemonProcess{pid: pid, role: role, cwd: cwd})
+	}
+
+	return daemons
+}
+
+// killProcess forcefully kills a process by PID.
+func killProcess(pid string) error {
+	cmd := exec.Command("kill", "-KILL", pid)
+	return cmd.Run()
+}
+
+// CleanupTestHQ terminates all Gas Town daemon processes associated with a test HQ.
+// This should be called in t.Cleanup after creating an HQ in tests.
+// It first attempts graceful shutdown, then force kills any remaining processes.
+func CleanupTestHQ(t testing.TB, hqPath string) {
+	t.Helper()
+
+	// First, try to find and kill any deacon patrol processes
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Try to stop deacon gracefully if possible
+	deaconDir := filepath.Join(hqPath, "deacon")
+	if _, err := os.Stat(deaconDir); err == nil {
+		// Try to stop deacon via gt command if available
+		cmd := exec.CommandContext(ctx, "gt", "deacon", "stop")
+		cmd.Dir = hqPath
+		cmd.Env = append(os.Environ(), "GT_HQ="+hqPath)
+		_ = cmd.Run() // Ignore errors - process may not exist
+	}
+
+	// Give processes a moment to shut down gracefully
+	time.Sleep(500 * time.Millisecond)
+
+	// Find all test daemons
+	daemons := findTestDaemons(hqPath)
+	if len(daemons) == 0 {
+		return // Nothing to clean up
+	}
+
+	t.Logf("CleanupTestHQ: found %d daemon processes to terminate", len(daemons))
+
+	// Terminate each daemon
+	for _, d := range daemons {
+		t.Logf("CleanupTestHQ: terminating %s (PID %s) in %s", d.role, d.pid, d.cwd)
+		if err := killProcess(d.pid); err != nil {
+			t.Logf("CleanupTestHQ: failed to kill %s (PID %s): %v", d.role, d.pid, err)
+		}
+	}
+
+	// Wait a moment for processes to die
+	time.Sleep(500 * time.Millisecond)
+
+	// Verify cleanup
+	remaining := findTestDaemons(hqPath)
+	if len(remaining) > 0 {
+		roles := make([]string, len(remaining))
+		for i, d := range remaining {
+			roles[i] = fmt.Sprintf("%s:%s", d.role, d.pid)
+		}
+		t.Errorf("CleanupTestHQ: %d daemon processes still running after cleanup: %v", len(remaining), roles)
+	}
+
+	// Also clean up any tmux sessions associated with this HQ
+	cleanupTmuxSessions(t, hqPath)
+}
+
+// cleanupTmuxSessions removes tmux sessions associated with a test HQ.
+func cleanupTmuxSessions(t testing.TB, hqPath string) {
+	// Extract the test name from the path (e.g., /tmp/TestAcc_FullLifecycle123/...)
+	base := filepath.Base(hqPath)
+	if base == "" || base == "." || base == "/" {
+		return
+	}
+
+	// Try to find and kill tmux sessions with names matching this HQ
+	// Session names are typically: hq-deacon, hq-mayor, etc.
+	cmd := exec.Command("tmux", "ls")
+	output, err := cmd.Output()
+	if err != nil {
+		return // No tmux server running or no sessions
+	}
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		parts := strings.Split(line, ":")
+		if len(parts) < 1 {
+			continue
+		}
+		sessionName := strings.TrimSpace(parts[0])
+
+		// Check if this session might be related to our test by checking its CWD
+		infoCmd := exec.Command("tmux", "display-message", "-t", sessionName, "-p", "#{pane_current_path}")
+		infoOutput, err := infoCmd.Output()
+		if err != nil {
+			continue
+		}
+
+		sessionPath := strings.TrimSpace(string(infoOutput))
+		if strings.HasPrefix(sessionPath, hqPath) {
+			t.Logf("CleanupTestHQ: killing tmux session %s", sessionName)
+			killCmd := exec.Command("tmux", "kill-session", "-t", sessionName)
+			_ = killCmd.Run()
+		}
+	}
 }

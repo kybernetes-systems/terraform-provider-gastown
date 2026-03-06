@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -17,6 +18,7 @@ import (
 
 var _ resource.Resource = &CrewResource{}
 var _ resource.ResourceWithConfigure = &CrewResource{}
+var _ resource.ResourceWithImportState = &CrewResource{}
 
 type CrewResource struct {
 	runner tfexec.Runner
@@ -45,35 +47,35 @@ func (r *CrewResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Description: "Unique identifier for the crew resource.",
-				Computed: true,
+				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"hq_path": schema.StringAttribute{
 				Description: "Path to the Gas Town HQ directory.",
-				Required: true,
+				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"rig": schema.StringAttribute{
 				Description: "Name of the rig this crew member belongs to.",
-				Required: true,
+				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"name": schema.StringAttribute{
 				Description: "Name of the crew member.",
-				Required: true,
+				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"role": schema.StringAttribute{
 				Description: "Role assigned to the crew member (e.g., 'coder', 'reviewer').",
-				Required: true,
+				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -170,4 +172,38 @@ func (r *CrewResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		resp.Diagnostics.AddError("Error removing crew", err.Error())
 		return
 	}
+}
+
+func (r *CrewResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	// Import ID is <rig_name>/<crew_name>. HQ path comes from provider configuration.
+	parts := strings.Split(req.ID, "/")
+	if len(parts) != 2 {
+		resp.Diagnostics.AddError(
+			"Import Error",
+			fmt.Sprintf("Invalid import ID %q: expected format <rig_name>/<crew_name>", req.ID),
+		)
+		return
+	}
+	rigName := parts[0]
+	crewName := parts[1]
+
+	// Get HQ path from the configured runner
+	hqPath := ""
+	if r.runner != nil {
+		hqPath = r.runner.HQPath()
+	}
+
+	if hqPath == "" {
+		resp.Diagnostics.AddError(
+			"Import Error",
+			"Cannot import crew: hq_path must be set in the provider configuration",
+		)
+		return
+	}
+
+	// Set the attributes in state
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("rig"), rigName)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), crewName)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("hq_path"), hqPath)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), filepath.Join(hqPath, rigName, crewName))...)
 }
