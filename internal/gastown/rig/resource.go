@@ -22,6 +22,7 @@ import (
 )
 
 var _ resource.Resource = &RigResource{}
+var _ resource.ResourceWithConfigure = &RigResource{}
 var _ resource.ResourceWithImportState = &RigResource{}
 
 type RigResource struct {

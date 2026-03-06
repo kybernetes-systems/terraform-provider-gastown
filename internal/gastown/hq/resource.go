@@ -23,6 +23,7 @@ import (
 )
 
 var _ resource.Resource = &HQResource{}
+var _ resource.ResourceWithConfigure = &HQResource{}
 var _ resource.ResourceWithImportState = &HQResource{}
 
 type HQResource struct {
