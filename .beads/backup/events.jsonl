@@ -79,3 +79,15 @@
 {"actor":"Phil Mocek","comment":null,"created_at":"2026-03-06T15:07:03Z","event_type":"created","id":79,"issue_id":"tfgt-m9e","new_value":"","old_value":""}
 {"actor":"Phil Mocek","comment":null,"created_at":"2026-03-06T15:07:16Z","event_type":"created","id":80,"issue_id":"tfgt-9rg","new_value":"","old_value":""}
 {"actor":"Phil Mocek","comment":null,"created_at":"2026-03-06T15:07:46Z","event_type":"created","id":81,"issue_id":"tfgt-0vt","new_value":"","old_value":""}
+{"actor":"Phil Mocek","comment":null,"created_at":"2026-03-06T15:08:01Z","event_type":"created","id":82,"issue_id":"tfgt-o7k","new_value":"","old_value":""}
+{"actor":"Phil Mocek","comment":null,"created_at":"2026-03-06T15:08:03Z","event_type":"created","id":83,"issue_id":"tfgt-if3","new_value":"","old_value":""}
+{"actor":"Phil Mocek","comment":null,"created_at":"2026-03-06T15:08:06Z","event_type":"created","id":84,"issue_id":"tfgt-p23","new_value":"","old_value":""}
+{"actor":"Phil Mocek","comment":null,"created_at":"2026-03-06T15:08:13Z","event_type":"created","id":85,"issue_id":"tfgt-ttm","new_value":"","old_value":""}
+{"actor":"Phil Mocek","comment":null,"created_at":"2026-03-06T15:08:15Z","event_type":"created","id":86,"issue_id":"tfgt-czq","new_value":"","old_value":""}
+{"actor":"Phil Mocek","comment":null,"created_at":"2026-03-06T15:08:18Z","event_type":"created","id":87,"issue_id":"tfgt-vfr","new_value":"","old_value":""}
+{"actor":"Phil Mocek","comment":null,"created_at":"2026-03-06T15:08:18Z","event_type":"created","id":88,"issue_id":"tfgt-xma","new_value":"","old_value":""}
+{"actor":"Phil Mocek","comment":null,"created_at":"2026-03-06T15:14:02Z","event_type":"closed","id":89,"issue_id":"tfgt-9rg","new_value":"Closed","old_value":""}
+{"actor":"Phil Mocek","comment":null,"created_at":"2026-03-06T15:14:03Z","event_type":"closed","id":90,"issue_id":"tfgt-0vt","new_value":"Closed","old_value":""}
+{"actor":"Phil Mocek","comment":null,"created_at":"2026-03-06T15:14:05Z","event_type":"closed","id":91,"issue_id":"tfgt-m9e","new_value":"Closed","old_value":""}
+{"actor":"Phil Mocek","comment":null,"created_at":"2026-03-06T15:14:07Z","event_type":"closed","id":92,"issue_id":"tfgt-thg","new_value":"Closed","old_value":""}
+{"actor":"Phil Mocek","comment":null,"created_at":"2026-03-06T15:24:27Z","event_type":"closed","id":93,"issue_id":"tfgt-ttm","new_value":"Closed","old_value":""}
