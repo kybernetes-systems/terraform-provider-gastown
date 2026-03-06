@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 // Runner executes gt and bd CLI commands.
@@ -49,7 +50,44 @@ func run(ctx context.Context, bin, hqPath string, args []string) (string, error)
 	cmd.Stdout = &combined
 	cmd.Stderr = &combined
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("%s %v: %w\n%s", bin, args, err, combined.String())
+		output := combined.String()
+		// Check for "not found" errors and return typed error for robust handling
+		if isNotFoundError(output) {
+			return "", &NotFoundError{
+				Resource: extractResourceType(args),
+				Name:     extractResourceName(args),
+			}
+		}
+		return "", fmt.Errorf("%s %v: %w\n%s", bin, args, err, output)
 	}
 	return combined.String(), nil
+}
+
+// isNotFoundError checks if the error output indicates a "not found" condition.
+// This centralizes the brittle string matching in one place.
+func isNotFoundError(output string) bool {
+	lower := strings.ToLower(output)
+	return strings.Contains(lower, "not found") ||
+		strings.Contains(lower, "no such") ||
+		strings.Contains(lower, "does not exist")
+}
+
+// extractResourceType attempts to determine the resource type from command arguments.
+func extractResourceType(args []string) string {
+	if len(args) >= 1 {
+		return args[0]
+	}
+	return "resource"
+}
+
+// extractResourceName attempts to extract the resource name from command arguments.
+func extractResourceName(args []string) string {
+	// Common patterns: "rig status <name>", "crew list <rig>"
+	if len(args) >= 3 {
+		return args[2]
+	}
+	if len(args) >= 2 {
+		return args[1]
+	}
+	return ""
 }

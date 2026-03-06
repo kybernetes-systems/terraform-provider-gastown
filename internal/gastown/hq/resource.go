@@ -7,14 +7,17 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	tfexec "github.com/kybernetes-systems/terraform-provider-gastown/internal/exec"
 )
@@ -60,10 +63,22 @@ func (r *HQResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
+				Validators: []validator.String{
+					stringvalidator.RegexMatches(
+						regexp.MustCompile(`^(/|[a-zA-Z]:\\|[a-zA-Z0-9_\-\.]+(/[a-zA-Z0-9_\-\.]+)*)$`),
+						"path must be absolute or simple relative path without parent directory references (..)",
+					),
+				},
 			},
 			"owner_email": schema.StringAttribute{
 				Description: "Email address of the HQ owner.",
 				Optional:    true,
+				Validators: []validator.String{
+					stringvalidator.RegexMatches(
+						regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`),
+						"must be a valid email address",
+					),
+				},
 			},
 			"git": schema.BoolAttribute{
 				Description: "Whether to initialize git in the HQ directory. Defaults to true.",
@@ -265,6 +280,12 @@ func waitForDolt(ctx context.Context, runner tfexec.Runner) error {
 	return fmt.Errorf("Dolt did not become ready after %d attempts", maxAttempts)
 }
 
+// getFreePort returns an available TCP port for Dolt to use.
+// Note: This has a theoretical race condition (TOCTOU) where the port could be
+// claimed between our check and Dolt starting. In practice, this is mitigated by:
+// 1. Using OS-assigned ephemeral ports (high range, unlikely to collide)
+// 2. Retrying on port conflict
+// For test environments, occasional port conflicts are handled gracefully.
 func getFreePort() (int, error) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

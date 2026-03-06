@@ -74,7 +74,7 @@ func AssertNoPolecat(t testing.TB, runner tfexec.Runner, rigName string) {
 	output, err := runner.GT(ctx, "rig", "status", rigName, "--json")
 	if err != nil {
 		// Rig may already be removed, which is fine
-		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "no such") {
+		if tfexec.IsNotFound(err) {
 			return
 		}
 		t.Logf("AssertNoPolecat: could not get rig status: %v", err)
