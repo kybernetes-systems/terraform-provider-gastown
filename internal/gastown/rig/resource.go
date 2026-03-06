@@ -2,6 +2,7 @@ package rig
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -136,6 +137,11 @@ func (r *RigResource) Create(ctx context.Context, req resource.CreateRequest, re
 	plan.ID = types.StringValue(filepath.Join(plan.HQPath.ValueString(), plan.Name.ValueString()))
 	plan.Status = types.StringValue("operational")
 
+	prefix, err := getPrefixFromGT(ctx, runner, plan.Name.ValueString())
+	if err == nil {
+		plan.Prefix = types.StringValue(prefix)
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -153,7 +159,7 @@ func (r *RigResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 
 	runner := r.runner_(state.HQPath.ValueString())
 
-	out, err := runner.GT(ctx, "rig", "status", state.Name.ValueString(), "--json")
+	_, err := runner.GT(ctx, "rig", "status", state.Name.ValueString())
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "no such") {
 			resp.State.RemoveResource(ctx)
@@ -162,7 +168,13 @@ func (r *RigResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		resp.Diagnostics.AddError("Error reading rig status", err.Error())
 		return
 	}
-	_ = out
+
+	// Get prefix from gt
+	prefix, err := getPrefixFromGT(ctx, runner, state.Name.ValueString())
+	if err == nil {
+		state.Prefix = types.StringValue(prefix)
+	}
+	state.Status = types.StringValue("operational")
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -201,4 +213,37 @@ func (r *RigResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 	if _, err := runner.GT(ctx, "rig", "dock", state.Name.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Error docking rig", err.Error())
 	}
+}
+
+func derivePrefix(hqPath, rigName string) (string, error) {
+	townData, err := os.ReadFile(filepath.Join(hqPath, "mayor", "town.json"))
+	if err != nil {
+		return "", err
+	}
+	var town struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(townData, &town); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s-rig-%s", town.Name, rigName), nil
+}
+
+func getPrefixFromGT(ctx context.Context, runner tfexec.Runner, rigName string) (string, error) {
+	output, err := runner.GT(ctx, "rig", "status", rigName)
+	if err != nil {
+		return "", err
+	}
+	for _, line := range strings.Split(output, "\n") {
+		if strings.Contains(line, "Beads prefix:") {
+			parts := strings.Split(line, ":")
+			if len(parts) >= 2 {
+				prefix := strings.TrimSpace(parts[1])
+				// Remove trailing hyphen if present
+				prefix = strings.TrimSuffix(prefix, "-")
+				return prefix, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("prefix not found in gt rig status output")
 }

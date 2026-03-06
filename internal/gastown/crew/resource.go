@@ -101,7 +101,7 @@ func (r *CrewResource) Create(ctx context.Context, req resource.CreateRequest, r
 
 	runner := r.runner_(plan.HQPath.ValueString())
 
-	if _, err := runner.GT(ctx, "crew", "add", plan.Rig.ValueString(), plan.Name.ValueString(), plan.Role.ValueString()); err != nil {
+	if _, err := runner.GT(ctx, "crew", "add", "--rig", plan.Rig.ValueString(), plan.Name.ValueString(), plan.Role.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Error creating crew", err.Error())
 		return
 	}
@@ -125,7 +125,7 @@ func (r *CrewResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 	runner := r.runner_(state.HQPath.ValueString())
 
-	out, err := runner.GT(ctx, "crew", "list", state.Rig.ValueString())
+	out, err := runner.GT(ctx, "crew", "list", "--rig", state.Rig.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading crew", err.Error())
 		return
@@ -161,7 +161,7 @@ func (r *CrewResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 
 	runner := r.runner_(state.HQPath.ValueString())
 
-	if _, err := runner.GT(ctx, "crew", "remove", state.Rig.ValueString(), state.Name.ValueString()); err != nil {
+	if _, err := runner.GT(ctx, "crew", "remove", "--rig", state.Rig.ValueString(), "--force", state.Name.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Error removing crew", err.Error())
 		return
 	}
