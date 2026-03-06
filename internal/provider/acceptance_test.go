@@ -127,6 +127,7 @@ resource "gastown_rig" "mirror" {
   name         = %[2]q
   repo         = %[5]q
   runtime      = %[3]q
+  max_polecats = 0
 }
 
 resource "gastown_crew" "deacon" {
