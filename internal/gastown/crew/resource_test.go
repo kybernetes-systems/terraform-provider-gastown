@@ -114,8 +114,8 @@ func TestCrewResource_Create_callsCrewAdd(t *testing.T) {
 	if resp.Diagnostics.HasError() {
 		t.Fatalf("Create returned errors: %v", resp.Diagnostics)
 	}
-	if !fake.calledWith("crew", "add", rigName, crewName, crewRole) {
-		t.Fatalf("expected gt crew add %s %s %s call, got: %v", rigName, crewName, crewRole, fake.calls)
+	if !fake.calledWith("crew", "add", "--rig", rigName, crewName, crewRole) {
+		t.Fatalf("expected gt crew add --rig %s %s %s call, got: %v", rigName, crewName, crewRole, fake.calls)
 	}
 }
 
@@ -180,8 +180,8 @@ func TestCrewResource_Delete_callsCrewRemove(t *testing.T) {
 	if resp.Diagnostics.HasError() {
 		t.Fatalf("Delete returned errors: %v", resp.Diagnostics)
 	}
-	if !fake.calledWith("crew", "remove", rigName, crewName) {
-		t.Fatalf("expected gt crew remove %s %s call, got: %v", rigName, crewName, fake.calls)
+	if !fake.calledWith("crew", "remove", "--rig", rigName, "--force", crewName) {
+		t.Fatalf("expected gt crew remove --rig %s --force %s call, got: %v", rigName, crewName, fake.calls)
 	}
 }
 
