@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 	"github.com/kybernetes-systems/terraform-provider-gastown/internal/gastown/hq"
+	"github.com/kybernetes-systems/terraform-provider-gastown/internal/testutil"
 )
 
 func newHQ() resource.Resource { return hq.New() }
@@ -37,10 +38,13 @@ func buildHQConfig(t *testing.T, r resource.Resource, attrs map[string]tftypes.V
 	raw := tftypes.NewValue(tftypes.Object{AttributeTypes: attrTypes}, attrs)
 	return tfsdk.Config{Raw: raw, Schema: schemaResp.Schema}
 }
+
 // Test 1: Create calls gt install and mayor/town.json exists afterwards.
 func TestHQResource_Create_callsGtInstall(t *testing.T) {
 	dir := t.TempDir()
 	hqPath := filepath.Join(dir, "gt")
+	// Cleanup any daemon processes spawned by this test
+	t.Cleanup(func() { testutil.CleanupTestHQ(t, hqPath) })
 
 	r := newHQ()
 	cfg := buildHQConfig(t, r, map[string]tftypes.Value{
@@ -72,6 +76,8 @@ func TestHQResource_Create_callsGtInstall(t *testing.T) {
 func TestHQResource_Read_idempotent(t *testing.T) {
 	dir := t.TempDir()
 	hqPath := filepath.Join(dir, "gt")
+	// Cleanup any daemon processes spawned by this test
+	t.Cleanup(func() { testutil.CleanupTestHQ(t, hqPath) })
 
 	r := newHQ()
 	cfg := buildHQConfig(t, r, map[string]tftypes.Value{
@@ -140,6 +146,8 @@ func TestHQResource_ForceNew_onPathChange(t *testing.T) {
 func TestHQResource_Delete_callsUninstall(t *testing.T) {
 	dir := t.TempDir()
 	hqPath := filepath.Join(dir, "gt")
+	// Cleanup any daemon processes spawned by this test
+	t.Cleanup(func() { testutil.CleanupTestHQ(t, hqPath) })
 
 	r := newHQ()
 	cfg := buildHQConfig(t, r, map[string]tftypes.Value{

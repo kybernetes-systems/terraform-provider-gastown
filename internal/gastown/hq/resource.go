@@ -49,37 +49,37 @@ func (r *HQResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Description: "Unique identifier for the HQ resource. Same as the path.",
-				Computed: true,
+				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"path": schema.StringAttribute{
 				Description: "Filesystem path where the Gas Town HQ will be installed.",
-				Required: true,
+				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"owner_email": schema.StringAttribute{
 				Description: "Email address of the HQ owner.",
-				Optional: true,
+				Optional:    true,
 			},
 			"git": schema.BoolAttribute{
 				Description: "Whether to initialize git in the HQ directory. Defaults to true.",
-				Optional: true,
-				Computed: true,
-				Default:  booldefault.StaticBool(true),
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(true),
 			},
 			"no_beads": schema.BoolAttribute{
 				Description: "Whether to skip beads initialization. Defaults to false.",
-				Optional: true,
-				Computed: true,
-				Default:  booldefault.StaticBool(false),
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
 			},
 			"name": schema.StringAttribute{
 				Description: "The name of the town (read from mayor/town.json).",
-				Computed: true,
+				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
@@ -194,7 +194,24 @@ func (r *HQResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
-func (r *HQResource) Update(_ context.Context, _ resource.UpdateRequest, _ *resource.UpdateResponse) {
+func (r *HQResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan, state hqModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// HQ attributes (owner_email, git, no_beads) are set at creation time
+	// and cannot be modified after installation. Force recreation if changed.
+	resp.Diagnostics.AddError(
+		"Update not supported",
+		fmt.Sprintf("HQ resource cannot be updated after creation. Changes detected from state:\n  owner_email: %s -> %s\n  git: %t -> %t\n  no_beads: %t -> %t\n\nTo apply changes, taint and recreate the resource: terraform taint gastown_hq.%s",
+			state.OwnerEmail.ValueString(), plan.OwnerEmail.ValueString(),
+			state.Git.ValueBool(), plan.Git.ValueBool(),
+			state.NoBeads.ValueBool(), plan.NoBeads.ValueBool(),
+			plan.Name.ValueString()),
+	)
 }
 
 func (r *HQResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

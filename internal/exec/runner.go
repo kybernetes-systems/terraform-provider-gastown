@@ -12,6 +12,7 @@ import (
 type Runner interface {
 	GT(ctx context.Context, args ...string) (string, error)
 	BD(ctx context.Context, args ...string) (string, error)
+	HQPath() string
 }
 
 type runner struct {
@@ -30,6 +31,10 @@ func (r *runner) GT(ctx context.Context, args ...string) (string, error) {
 
 func (r *runner) BD(ctx context.Context, args ...string) (string, error) {
 	return run(ctx, "bd", r.hqPath, args)
+}
+
+func (r *runner) HQPath() string {
+	return r.hqPath
 }
 
 func run(ctx context.Context, bin, hqPath string, args []string) (string, error) {

@@ -9,12 +9,14 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
+	"github.com/kybernetes-systems/terraform-provider-gastown/internal/testutil"
 )
 
 const testRepoURL = "https://github.com/google/googletest.git"
 
 func TestAcc_FullLifecycle(t *testing.T) {
 	hqPath := filepath.Join(t.TempDir(), "gt-lifecycle")
+	t.Cleanup(func() { testutil.CleanupTestHQ(t, hqPath) })
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: TestAccProtoV6ProviderFactories,
@@ -45,6 +47,7 @@ func TestAcc_FullLifecycle(t *testing.T) {
 
 func TestAcc_DriftScenario(t *testing.T) {
 	hqPath := filepath.Join(t.TempDir(), "gt-drift")
+	t.Cleanup(func() { testutil.CleanupTestHQ(t, hqPath) })
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: TestAccProtoV6ProviderFactories,
@@ -78,6 +81,10 @@ func TestAcc_Concurrency(t *testing.T) {
 
 	hqPath1 := filepath.Join(t.TempDir(), "gt-con-1")
 	hqPath2 := filepath.Join(t.TempDir(), "gt-con-2")
+	t.Cleanup(func() {
+		testutil.CleanupTestHQ(t, hqPath1)
+		testutil.CleanupTestHQ(t, hqPath2)
+	})
 
 	// Start two Test functions in parallel
 	t.Run("first", func(t *testing.T) {
