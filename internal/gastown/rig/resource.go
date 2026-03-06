@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -14,6 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	tfexec "github.com/kybernetes-systems/terraform-provider-gastown/internal/exec"
 )
@@ -56,6 +59,12 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 			"hq_path": schema.StringAttribute{
 				Description: "Path to the Gas Town HQ directory.",
 				Required:    true,
+				Validators: []validator.String{
+					stringvalidator.RegexMatches(
+						regexp.MustCompile(`^(/|[a-zA-Z]:\\)`),
+						"path must be absolute",
+					),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -63,6 +72,12 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 			"name": schema.StringAttribute{
 				Description: "Name of the rig (used as identifier).",
 				Required:    true,
+				Validators: []validator.String{
+					stringvalidator.RegexMatches(
+						regexp.MustCompile(`^[a-zA-Z0-9_-]+$`),
+						"name must contain only alphanumeric characters, hyphens, and underscores",
+					),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -70,6 +85,12 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 			"repo": schema.StringAttribute{
 				Description: "Git repository URL or local path for the rig.",
 				Required:    true,
+				Validators: []validator.String{
+					stringvalidator.RegexMatches(
+						regexp.MustCompile(`^[a-zA-Z0-9._~:/?#\[\]@!$&'()*+,;=%-]+$`),
+						"repo must be a valid URL or path",
+					),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -179,7 +200,7 @@ func (r *RigResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 
 	_, err := runner.GT(ctx, "rig", "status", state.Name.ValueString())
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "no such") {
+		if tfexec.IsNotFound(err) {
 			resp.State.RemoveResource(ctx)
 			return
 		}
