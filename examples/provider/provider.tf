@@ -1,7 +1,10 @@
 terraform {
+  required_version = ">= 1.7"
+
   required_providers {
     gastown = {
-      source = "kybernetes-systems/gastown"
+      source  = "kybernetes-systems/gastown"
+      version = ">= 0.1.0"
     }
   }
 }
