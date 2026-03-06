@@ -9,11 +9,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	tfexec "github.com/kybernetes-systems/terraform-provider-gastown/internal/exec"
 	"github.com/kybernetes-systems/terraform-provider-gastown/internal/gastown/crew"
 	"github.com/kybernetes-systems/terraform-provider-gastown/internal/gastown/hq"
 	"github.com/kybernetes-systems/terraform-provider-gastown/internal/gastown/rig"
+	"github.com/kybernetes-systems/terraform-provider-gastown/internal/validators"
 )
 
 var _ provider.Provider = &GastownProvider{}
@@ -39,6 +41,9 @@ func (p *GastownProvider) Schema(_ context.Context, _ provider.SchemaRequest, re
 			"hq_path": schema.StringAttribute{
 				Required:    true,
 				Description: "Path to the Gas Town HQ directory.",
+				Validators: []validator.String{
+					validators.PathValidator{},
+				},
 			},
 		},
 	}
