@@ -7,10 +7,8 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"regexp"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -20,6 +18,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	tfexec "github.com/kybernetes-systems/terraform-provider-gastown/internal/exec"
+	"github.com/kybernetes-systems/terraform-provider-gastown/internal/validators"
 )
 
 var _ resource.Resource = &HQResource{}
@@ -65,20 +64,14 @@ func (r *HQResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 					stringplanmodifier.RequiresReplace(),
 				},
 				Validators: []validator.String{
-					stringvalidator.RegexMatches(
-						regexp.MustCompile(`^(/|[a-zA-Z]:\\|[a-zA-Z0-9_\-\.]+(/[a-zA-Z0-9_\-\.]+)*)$`),
-						"path must be absolute or simple relative path without parent directory references (..)",
-					),
+					validators.PathValidator{},
 				},
 			},
 			"owner_email": schema.StringAttribute{
 				Description: "Email address of the HQ owner.",
 				Optional:    true,
 				Validators: []validator.String{
-					stringvalidator.RegexMatches(
-						regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`),
-						"must be a valid email address",
-					),
+					validators.EmailValidator{},
 				},
 			},
 			"git": schema.BoolAttribute{
