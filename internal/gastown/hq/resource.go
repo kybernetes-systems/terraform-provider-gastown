@@ -48,31 +48,37 @@ func (r *HQResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
+				Description: "Unique identifier for the HQ resource. Same as the path.",
 				Computed: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"path": schema.StringAttribute{
+				Description: "Filesystem path where the Gas Town HQ will be installed.",
 				Required: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"owner_email": schema.StringAttribute{
+				Description: "Email address of the HQ owner.",
 				Optional: true,
 			},
 			"git": schema.BoolAttribute{
+				Description: "Whether to initialize git in the HQ directory. Defaults to true.",
 				Optional: true,
 				Computed: true,
 				Default:  booldefault.StaticBool(true),
 			},
 			"no_beads": schema.BoolAttribute{
+				Description: "Whether to skip beads initialization. Defaults to false.",
 				Optional: true,
 				Computed: true,
 				Default:  booldefault.StaticBool(false),
 			},
 			"name": schema.StringAttribute{
+				Description: "The name of the town (read from mayor/town.json).",
 				Computed: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
