@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -127,17 +127,12 @@ func (r *HQResource) Create(ctx context.Context, req resource.CreateRequest, res
 
 	// Configure unique Dolt port for concurrency in tests
 	if os.Getenv("TF_ACC") == "1" {
-		port := 3307
-		if strings.Contains(hqPath, "gt2") {
-			port = 3308
+		port, err := getFreePort()
+		if err != nil {
+			resp.Diagnostics.AddWarning("Could not allocate free port, using default", err.Error())
+			port = 3307
 		}
-		// If we're in a test, let's also try to find a port based on time/pid if needed
-		// to avoid collisions between separate test runs.
-		if strings.Contains(hqPath, "gt") {
-			// Offset by a value that changes between runs
-			port += (int(time.Now().Unix()) % 100) * 10
-		}
-		
+
 		daemonConfigPath := filepath.Join(hqPath, "mayor", "daemon.json")
 		daemonConfig := map[string]interface{}{
 			"env": map[string]string{
@@ -153,6 +148,11 @@ func (r *HQResource) Create(ctx context.Context, req resource.CreateRequest, res
 	// Start services (Dolt, etc) needed for subsequent rig/crew operations.
 	if out, err := hqRunner.GT(ctx, "up"); err != nil {
 		resp.Diagnostics.AddWarning("gt up encountered issues", fmt.Sprintf("output: %s\nerror: %v", out, err))
+	}
+
+	// Wait for Dolt to be ready
+	if err := waitForDolt(ctx, hqRunner); err != nil {
+		resp.Diagnostics.AddWarning("Dolt may not be ready", err.Error())
 	}
 
 	name, err := readTownName(hqPath)
@@ -224,4 +224,29 @@ func readTownName(hqPath string) (string, error) {
 		return "", fmt.Errorf("parsing mayor/town.json: %w", err)
 	}
 	return town.Name, nil
+}
+
+func waitForDolt(ctx context.Context, runner tfexec.Runner) error {
+	maxAttempts := 30
+	for i := 0; i < maxAttempts; i++ {
+		_, err := runner.BD(ctx, "status")
+		if err == nil {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
+	return fmt.Errorf("Dolt did not become ready after %d attempts", maxAttempts)
+}
+
+func getFreePort() (int, error) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port, nil
 }

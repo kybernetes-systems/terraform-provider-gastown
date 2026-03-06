@@ -50,11 +50,11 @@ func TestAcc_DriftScenario(t *testing.T) {
 		ProtoV6ProviderFactories: TestAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccConfig(hqPath, "drift-rig", "claude", "drift-crew", testRepoURL),
+				Config: testAccConfig(hqPath, "drift_rig", "claude", "drift_crew", testRepoURL),
 				Check: resource.ComposeTestCheckFunc(
 					func(s *terraform.State) error {
 						// Manually edit rig config.json to cause drift
-						configPath := filepath.Join(hqPath, "drift-rig", "config.json")
+						configPath := filepath.Join(hqPath, "drift_rig", "config.json")
 						content, err := os.ReadFile(configPath)
 						if err != nil {
 							return err
@@ -65,7 +65,7 @@ func TestAcc_DriftScenario(t *testing.T) {
 				),
 			},
 			{
-				Config:             testAccConfig(hqPath, "drift-rig", "claude", "drift-crew", testRepoURL),
+				Config:             testAccConfig(hqPath, "drift_rig", "claude", "drift_crew", testRepoURL),
 				PlanOnly:           true,
 				ExpectNonEmptyPlan: true,
 			},
