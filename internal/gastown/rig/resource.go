@@ -46,46 +46,54 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
+				Description: "Unique identifier for the rig resource.",
 				Computed: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"hq_path": schema.StringAttribute{
+				Description: "Path to the Gas Town HQ directory.",
 				Required: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"name": schema.StringAttribute{
+				Description: "Name of the rig (used as identifier).",
 				Required: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"repo": schema.StringAttribute{
+				Description: "Git repository URL or local path for the rig.",
 				Required: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"runtime": schema.StringAttribute{
+				Description: "Runtime environment for the rig. Defaults to 'claude'.",
 				Optional: true,
 				Computed: true,
 				Default:  stringdefault.StaticString("claude"),
 			},
 			"max_polecats": schema.Int64Attribute{
+				Description: "Maximum number of polecats (workers) for the rig. Defaults to 3.",
 				Optional: true,
 				Computed: true,
 				Default:  int64default.StaticInt64(3),
 			},
 			"status": schema.StringAttribute{
+				Description: "Current operational status of the rig.",
 				Computed: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"prefix": schema.StringAttribute{
+				Description: "Beads prefix assigned to this rig (read from gt rig status).",
 				Computed: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
