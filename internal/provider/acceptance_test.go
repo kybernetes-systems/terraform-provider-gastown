@@ -20,6 +20,7 @@ func TestAcc_FullLifecycle(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: TestAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckDestroy(hqPath),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccConfig(hqPath, "mirror", "claude", "deacon", testRepoURL),
@@ -51,6 +52,7 @@ func TestAcc_DriftScenario(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: TestAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckDestroy(hqPath),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccConfig(hqPath, "drift_rig", "claude", "drift_crew", testRepoURL),
@@ -91,6 +93,7 @@ func TestAcc_Concurrency(t *testing.T) {
 		t.Parallel()
 		resource.Test(t, resource.TestCase{
 			ProtoV6ProviderFactories: TestAccProtoV6ProviderFactories,
+			CheckDestroy:             testAccCheckDestroy(hqPath1),
 			Steps: []resource.TestStep{
 				{
 					Config: testAccConfig(hqPath1, "rig1", "claude", "crew1", testRepoURL),
@@ -106,6 +109,7 @@ func TestAcc_Concurrency(t *testing.T) {
 		t.Parallel()
 		resource.Test(t, resource.TestCase{
 			ProtoV6ProviderFactories: TestAccProtoV6ProviderFactories,
+			CheckDestroy:             testAccCheckDestroy(hqPath2),
 			Steps: []resource.TestStep{
 				{
 					Config: testAccConfig(hqPath2, "rig2", "claude", "crew2", testRepoURL),
@@ -116,6 +120,24 @@ func TestAcc_Concurrency(t *testing.T) {
 			},
 		})
 	})
+}
+
+// testAccCheckDestroy verifies that resources have been destroyed.
+func testAccCheckDestroy(hqPath string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		// Verify HQ directory no longer exists or is empty
+		if _, err := os.Stat(hqPath); err == nil {
+			// Directory still exists, check if it's empty or contains only logs
+			entries, err := os.ReadDir(hqPath)
+			if err != nil {
+				return fmt.Errorf("error reading HQ directory %s: %w", hqPath, err)
+			}
+			if len(entries) > 0 {
+				return fmt.Errorf("HQ directory %s still contains files after destroy", hqPath)
+			}
+		}
+		return nil
+	}
 }
 
 func testAccConfig(hqPath, rigName, runtime, crewName, repoURL string) string {

@@ -175,6 +175,10 @@ func (r *CrewResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	}
 
 	if !found {
+		resp.Diagnostics.AddWarning(
+			"Crew member not found",
+			fmt.Sprintf("Crew member %q not found in rig %q. Removing from state.", state.Name.ValueString(), state.Rig.ValueString()),
+		)
 		resp.State.RemoveResource(ctx)
 		return
 	}

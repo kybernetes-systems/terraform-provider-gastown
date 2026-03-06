@@ -146,24 +146,23 @@ func (r *HQResource) Create(ctx context.Context, req resource.CreateRequest, res
 		return
 	}
 
-	// Configure unique Dolt port for concurrency in tests
-	if os.Getenv("TF_ACC") == "1" {
-		port, err := getFreePort()
-		if err != nil {
-			resp.Diagnostics.AddWarning("Could not allocate free port, using default", err.Error())
-			port = 3307
-		}
-
-		daemonConfigPath := filepath.Join(hqPath, "mayor", "daemon.json")
-		daemonConfig := map[string]interface{}{
-			"env": map[string]string{
-				"GT_DOLT_PORT": fmt.Sprintf("%d", port),
-			},
-		}
-		data, _ := json.MarshalIndent(daemonConfig, "", "  ")
-		_ = os.MkdirAll(filepath.Dir(daemonConfigPath), 0755)
-		_ = os.WriteFile(daemonConfigPath, data, 0644)
+	// Configure unique Dolt port to avoid conflicts when multiple HQs are created
+	// This is especially important for tests but also benefits production use
+	port, err := getFreePort()
+	if err != nil {
+		resp.Diagnostics.AddWarning("Could not allocate free port, using default", err.Error())
+		port = 3307
 	}
+
+	daemonConfigPath := filepath.Join(hqPath, "mayor", "daemon.json")
+	daemonConfig := map[string]interface{}{
+		"env": map[string]string{
+			"GT_DOLT_PORT": fmt.Sprintf("%d", port),
+		},
+	}
+	data, _ := json.MarshalIndent(daemonConfig, "", "  ")
+	_ = os.MkdirAll(filepath.Dir(daemonConfigPath), 0755)
+	_ = os.WriteFile(daemonConfigPath, data, 0644)
 
 	hqRunner := tfexec.NewRunner(hqPath)
 	// Start services (Dolt, etc) needed for subsequent rig/crew operations.
