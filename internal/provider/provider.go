@@ -21,12 +21,21 @@ import (
 var _ provider.Provider = &GastownProvider{}
 
 type GastownProvider struct {
-	version string
+	version       string
+	runnerFactory func(hqPath string) tfexec.Runner
 }
 
 func New(version string) func() provider.Provider {
 	return func() provider.Provider {
 		return &GastownProvider{version: version}
+	}
+}
+
+// NewForTesting creates a provider with a custom runner factory.
+// Intended for use in test files only.
+func NewForTesting(version string, factory func(hqPath string) tfexec.Runner) func() provider.Provider {
+	return func() provider.Provider {
+		return &GastownProvider{version: version, runnerFactory: factory}
 	}
 }
 
@@ -66,7 +75,12 @@ func (p *GastownProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
-	runner := tfexec.NewRunner(config.HQPath.ValueString())
+	var runner tfexec.Runner
+	if p.runnerFactory != nil {
+		runner = p.runnerFactory(config.HQPath.ValueString())
+	} else {
+		runner = tfexec.NewRunner(config.HQPath.ValueString())
+	}
 	resp.DataSourceData = runner
 	resp.ResourceData = runner
 }
