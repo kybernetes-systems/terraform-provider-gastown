@@ -173,6 +173,11 @@ func (r *RigResource) Create(ctx context.Context, req resource.CreateRequest, re
 	prefix, err := getPrefixFromGT(ctx, runner, plan.Name.ValueString())
 	if err == nil {
 		plan.Prefix = types.StringValue(prefix)
+	} else {
+		resp.Diagnostics.AddWarning(
+			"Could not determine beads prefix",
+			fmt.Sprintf("Failed to read beads prefix for rig %q: %v", plan.Name.ValueString(), err),
+		)
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
@@ -206,6 +211,11 @@ func (r *RigResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	prefix, err := getPrefixFromGT(ctx, runner, state.Name.ValueString())
 	if err == nil {
 		state.Prefix = types.StringValue(prefix)
+	} else {
+		resp.Diagnostics.AddWarning(
+			"Could not determine beads prefix",
+			fmt.Sprintf("Failed to read beads prefix for rig %q: %v", state.Name.ValueString(), err),
+		)
 	}
 	state.Status = types.StringValue("operational")
 
