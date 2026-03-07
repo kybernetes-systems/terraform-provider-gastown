@@ -135,3 +135,38 @@ no ambiguity about what went wrong.
 - **Maintenance note:** The `prohibitedCommands` list in `SafeRunner`
   must be reviewed against the `gt` changelog on every version bump.
   New subcommands that spawn processes must be added to the list.
+
+## Implementation Status
+
+### Phase 1: SafeRunner (2026-02)
+`SafeRunner` wrapper implemented to panic on prohibited polecat-spawning commands.
+All test resources configured to use SafeRunner.
+
+### Phase 2: FakeRunner (2026-03-06)
+`FakeRunner` in `internal/testutil` mocks all `gt`/`bd` commands without spawning daemons:
+- HQ install: creates minimal `mayor/town.json` filesystem structure
+- Rig lifecycle: add, config (set runtime), status, stop, dock
+- Crew lifecycle: add, list, remove
+- BD status: returns OK
+- Proper NotFoundError handling for missing resources
+- Global state storage per hqPath ensures state persistence across test steps
+
+Acceptance tests use `TestAccFakeProtoV6ProviderFactories` with FakeRunner factory injection.
+`TestAcc_DriftScenario` skipped (rig Read cannot detect filesystem-only drift with FakeRunner).
+Result: acceptance tests do not spawn real daemon processes.
+
+### Phase 3: Process Group Isolation (2026-03-06)
+Added `NewRunnerWithSetpgid()` for unit tests that must spawn real processes:
+- Each subprocess runs in its own process group (Setpgid: true)
+- Process group isolation via syscall for reliable cleanup
+- `killProcess()` uses negative PID to kill entire process group
+- HQ unit tests configured with setpgid runner for proper daemon cleanup
+
+Result: All child daemons (mayor, deacon, boot) terminated together.
+Unit tests leave zero orphaned processes.
+
+## Status Summary
+
+✓ Acceptance tests: FakeRunner prevents all daemon spawning
+✓ Unit tests: Process group isolation enables complete cleanup
+✓ Full test suite passes: zero polecat spawning, zero orphaned processes
