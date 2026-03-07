@@ -12,13 +12,13 @@ terraform {
 
 provider "gastown" {
   # Base directory for the Gas Town installation
-  hq_path = "/home/pmocek/gt"
+  hq_path = "/home/user/gt"
 }
 
 # 1. Initialize the Town HQ
 resource "gastown_hq" "main" {
-  path        = "/home/pmocek/gt"
-  owner_email = "phil@mocek.org"
+  path        = "/home/user/gt"
+  owner_email = "user@example.com"
   git         = true
   no_beads    = false
 }
