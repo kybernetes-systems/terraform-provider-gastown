@@ -4,8 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 )
 
@@ -16,37 +20,38 @@ func TestRigResource_Injection(t *testing.T) {
 	// Malicious name attempting to inject extra arguments
 	maliciousName := "myrig --extra-flag"
 	
+	// Verify that the validator catches it
+	s := getSchema(r)
+	nameAttr := s.Schema.Attributes["name"].(schema.StringAttribute)
+	
+	foundValidator := false
+	for _, v := range nameAttr.Validators {
+		resp := &validator.StringResponse{}
+		v.ValidateString(context.Background(), validator.StringRequest{
+			Path: path.Root("name"),
+			ConfigValue: types.StringValue(maliciousName),
+		}, resp)
+		
+		if resp.Diagnostics.HasError() {
+			foundValidator = true
+			t.Logf("Validator correctly caught malicious name: %v", resp.Diagnostics)
+		}
+	}
+	
+	if !foundValidator {
+		t.Errorf("Expected validator to catch malicious name %q, but it didn't", maliciousName)
+	}
+
 	attrs := baseAttrs()
 	attrs["name"] = tftypes.NewValue(tftypes.String, maliciousName)
 	
 	plan := rigPlan(t, r, attrs)
-	s := getSchema(r)
 	emptyState := tfsdk.State{Raw: tftypes.NewValue(plan.Raw.Type(), nil), Schema: s.Schema}
 
 	var resp resource.CreateResponse
 	resp.State = emptyState
 	
-	// This currently succeeds because there's no validation
+	// We still call Create to ensure it's at least not crashing, 
+	// though in real TF validation would have stopped it before Create.
 	r.Create(context.Background(), resource.CreateRequest{Plan: plan}, &resp)
-
-	if resp.Diagnostics.HasError() {
-		t.Logf("Create returned errors (as expected after fix): %v", resp.Diagnostics)
-	} else {
-		t.Logf("Create succeeded with malicious name: %s", maliciousName)
-	}
-	
-	// Check if the malicious name was passed as-is
-	found := false
-	for _, call := range fake.calls {
-		for _, arg := range call {
-			if arg == maliciousName {
-				found = true
-				break
-			}
-		}
-	}
-	
-	if !found {
-		t.Errorf("Expected malicious name %q to be passed as a single argument, but it wasn't found in calls: %v", maliciousName, fake.calls)
-	}
 }
