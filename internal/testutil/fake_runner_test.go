@@ -43,13 +43,13 @@ func TestFakeRunner_RigLifecycle(t *testing.T) {
 		t.Fatalf("rig config set: %v", err)
 	}
 
-	// Status returns JSON with "polecats"
+	// Status returns text with "Polecats:" line
 	out, err := r.GT(context.Background(), "rig", "status", "myrig")
 	if err != nil {
 		t.Fatalf("rig status: %v", err)
 	}
-	if !strings.Contains(out, "polecats") {
-		t.Error("rig status output missing 'polecats' key")
+	if !strings.Contains(out, "Polecats:") {
+		t.Error("rig status output missing 'Polecats:' line")
 	}
 
 	// Dock removes the rig

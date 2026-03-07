@@ -30,13 +30,24 @@ type fakeCrew struct {
 	role string
 }
 
+// Global state storage for FakeRunners, keyed by hqPath.
+// This ensures that multiple FakeRunner instances for the same hqPath
+// share state across test steps.
+var fakeRunnerState = make(map[string]*FakeRunner)
+
 // NewFakeRunner returns a FakeRunner for hqPath.
+// Multiple calls with the same hqPath return the same instance (reuses state).
 func NewFakeRunner(hqPath string) tfexec.Runner {
-	return &FakeRunner{
+	if runner, exists := fakeRunnerState[hqPath]; exists {
+		return runner
+	}
+	runner := &FakeRunner{
 		hqPath: hqPath,
 		rigs:   make(map[string]*fakeRig),
 		crews:  make(map[string]*fakeCrew),
 	}
+	fakeRunnerState[hqPath] = runner
+	return runner
 }
 
 func (r *FakeRunner) HQPath() string { return r.hqPath }
@@ -136,14 +147,8 @@ func (r *FakeRunner) rigStatus(args []string) (string, error) {
 	if !ok {
 		return "", &tfexec.NotFoundError{Resource: "rig", Name: args[0]}
 	}
-	out, _ := json.Marshal(map[string]interface{}{
-		"name":              args[0],
-		"repo":              rig.repo,
-		"runtime":           rig.runtime,
-		"polecats":          0,
-		"Beads prefix":      "",
-	})
-	return string(out), nil
+	// Return status in text format with "Beads prefix:" line for getPrefixFromGT to parse
+	return fmt.Sprintf("Name: %s\nRuntime: %s\nRepo: %s\nPolecats: 0\nBeads prefix: -\n", args[0], rig.runtime, rig.repo), nil
 }
 
 func (r *FakeRunner) rigStop(args []string) (string, error) {
