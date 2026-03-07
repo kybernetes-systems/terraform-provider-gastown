@@ -60,6 +60,15 @@ func run(ctx context.Context, bin, hqPath string, setpgid bool, args []string) (
 
 	if setpgid {
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		// When using Setpgid, the context cancellation only kills the leader.
+		// We need to ensure the entire group is killed.
+		cmd.Cancel = func() error {
+			if cmd.Process != nil {
+				// Kill the process group (negative PID)
+				return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			}
+			return nil
+		}
 	}
 
 	var combined bytes.Buffer

@@ -93,6 +93,7 @@ func TestAcc_Concurrency(t *testing.T) {
 	// Start two Test functions in parallel
 	t.Run("first", func(t *testing.T) {
 		t.Parallel()
+		t.Cleanup(func() { testutil.CleanupTestHQ(t, hqPath1) })
 		resource.Test(t, resource.TestCase{
 			ProtoV6ProviderFactories: TestAccFakeProtoV6ProviderFactories,
 			CheckDestroy:             testAccCheckDestroy(hqPath1),
@@ -109,6 +110,7 @@ func TestAcc_Concurrency(t *testing.T) {
 
 	t.Run("second", func(t *testing.T) {
 		t.Parallel()
+		t.Cleanup(func() { testutil.CleanupTestHQ(t, hqPath2) })
 		resource.Test(t, resource.TestCase{
 			ProtoV6ProviderFactories: TestAccFakeProtoV6ProviderFactories,
 			CheckDestroy:             testAccCheckDestroy(hqPath2),
