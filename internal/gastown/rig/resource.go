@@ -258,12 +258,20 @@ func (r *RigResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 	runner := r.runner_(state.HQPath.ValueString())
 
 	if _, err := runner.GT(ctx, "rig", "stop", state.Name.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error stopping rig", err.Error())
-		return
+		// Ignore errors if the rig is already gone or services are down
+		if !tfexec.IsNotFound(err) {
+			resp.Diagnostics.AddWarning("Error stopping rig", err.Error())
+		}
 	}
 
-	if _, err := runner.GT(ctx, "rig", "dock", state.Name.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error docking rig", err.Error())
+	if out, err := runner.GT(ctx, "rig", "dock", state.Name.ValueString()); err != nil {
+		// rig dock often fails if the Dolt server was already stopped or if the
+		// database is in a partial state. We treat this as a warning because
+		// the resource is being removed from Terraform anyway.
+		resp.Diagnostics.AddWarning(
+			"Rig docked with issues",
+			fmt.Sprintf("Output: %s\nError: %v", out, err),
+		)
 	}
 }
 
