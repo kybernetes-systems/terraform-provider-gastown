@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
+	tfexec "github.com/kybernetes-systems/terraform-provider-gastown/internal/exec"
 	"github.com/kybernetes-systems/terraform-provider-gastown/internal/gastown/hq"
 	"github.com/kybernetes-systems/terraform-provider-gastown/internal/testutil"
 )
@@ -19,7 +20,7 @@ func newHQ(hqPath string) resource.Resource {
 	r.(resource.ResourceWithConfigure).Configure(
 		context.Background(),
 		resource.ConfigureRequest{
-			ProviderData: testutil.NewSafeRunner(tfexec.NewRunner(hqPath)),
+			ProviderData: testutil.NewSafeRunner(tfexec.NewRunnerWithSetpgid(hqPath)),
 		},
 		&resource.ConfigureResponse{},
 	)

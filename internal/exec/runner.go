@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 // Runner executes gt and bd CLI commands.
@@ -18,7 +19,8 @@ type Runner interface {
 }
 
 type runner struct {
-	hqPath string
+	hqPath   string
+	setpgid  bool
 }
 
 // NewRunner returns a Runner that executes gt and bd with the given HQ path
@@ -27,19 +29,25 @@ func NewRunner(hqPath string) Runner {
 	return &runner{hqPath: hqPath}
 }
 
+// NewRunnerWithSetpgid returns a Runner that creates a new process group for each command.
+// This is useful for tests to ensure all child processes can be terminated.
+func NewRunnerWithSetpgid(hqPath string) Runner {
+	return &runner{hqPath: hqPath, setpgid: true}
+}
+
 func (r *runner) GT(ctx context.Context, args ...string) (string, error) {
-	return run(ctx, "gt", r.hqPath, args)
+	return run(ctx, "gt", r.hqPath, r.setpgid, args)
 }
 
 func (r *runner) BD(ctx context.Context, args ...string) (string, error) {
-	return run(ctx, "bd", r.hqPath, args)
+	return run(ctx, "bd", r.hqPath, r.setpgid, args)
 }
 
 func (r *runner) HQPath() string {
 	return r.hqPath
 }
 
-func run(ctx context.Context, bin, hqPath string, args []string) (string, error) {
+func run(ctx context.Context, bin, hqPath string, setpgid bool, args []string) (string, error) {
 	cmd := exec.CommandContext(ctx, bin, args...)
 	if hqPath != "" {
 		cleanedHqPath := filepath.Clean(hqPath)
@@ -48,6 +56,11 @@ func run(ctx context.Context, bin, hqPath string, args []string) (string, error)
 		}
 		cmd.Env = append(cmd.Environ(), "GT_TOWN_ROOT="+cleanedHqPath)
 	}
+
+	if setpgid {
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	}
+
 	var combined bytes.Buffer
 	cmd.Stdout = &combined
 	cmd.Stderr = &combined
