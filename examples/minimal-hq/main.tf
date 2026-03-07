@@ -11,12 +11,12 @@ terraform {
 }
 
 provider "gastown" {
-  hq_path = "/home/pmocek/gt-minimal"
+  hq_path = "/home/user/gt-minimal"
 }
 
 # The Town HQ is the only required resource.
 # Once created, the Mayor is active and the workspace is ready for manual use.
 resource "gastown_hq" "main" {
-  path        = "/home/pmocek/gt-minimal"
-  owner_email = "phil@mocek.org"
+  path        = "/home/user/gt-minimal"
+  owner_email = "user@example.com"
 }
