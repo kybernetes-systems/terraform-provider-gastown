@@ -69,7 +69,7 @@ func AssertNoPolecat(t testing.TB, runner tfexec.Runner, rigName string) {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	// Check polecat count via rig status
 	output, err := runner.GT(ctx, "rig", "status", rigName, "--json")
@@ -247,7 +247,7 @@ func CleanupTestHQ(t testing.TB, hqPath string) {
 
 	// First, try to find and kill any deacon patrol processes
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	// Try to stop deacon gracefully if possible
 	deaconDir := filepath.Join(hqPath, "deacon")

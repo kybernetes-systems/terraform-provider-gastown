@@ -49,24 +49,50 @@ spawning a live agent.
 ```go
 // SafeRunner wraps exec.Runner for use in tests.
 // It panics if any command that could spawn polecats is called.
-// See ADR 0011.
 type SafeRunner struct {
     inner Runner
 }
 
-var prohibitedCommands = []string{"start", "crew run", "convoy"}
+var prohibitedCommands = []string{"rig start", "crew run", "convoy"}
 
-func (r *SafeRunner) Run(ctx context.Context, args ...string) ([]byte, error) {
+func (r *SafeRunner) GT(ctx context.Context, args ...string) (string, error) {
+    cmd := strings.Join(args, " ")
     for _, prohibited := range prohibitedCommands {
-        if len(args) >= 2 && strings.Join(args[:2], " ") == prohibited {
+        if strings.HasPrefix(cmd, prohibited) {
             panic(fmt.Sprintf(
                 "testutil.SafeRunner: prohibited command %q — tests must not spawn polecats (ADR 0011)",
-                strings.Join(args, " "),
+                cmd,
             ))
         }
     }
-    return r.inner.Run(ctx, args...)
+    return r.inner.GT(ctx, args...)
 }
+```
+
+**Acceptance tests should use `FakeRunner` whenever possible.**
+To avoid spawning any real Gas Town daemons (mayor/deacon) during tests,
+the `FakeRunner` in `internal/testutil` can be used to mock all `gt`
+commands. This is especially important for multi-step resource tests
+where the overhead and risk of real daemons is high.
+
+```go
+// Use FakeRunner in provider factories for acceptance tests
+TestAccFakeProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
+    "gastown": providerserver.NewProtocol6WithError(
+        ourprovider.NewForTesting("test", testutil.NewFakeRunner)(),
+    ),
+}
+```
+
+**Real daemons in unit tests must be isolated via Process Groups.**
+When a real `Runner` must be used (e.g., to test HQ installation), use
+`NewRunnerWithSetpgid` to ensure all spawned processes belong to a unique
+process group. This allows `testutil.CleanupTestHQ` to reliably terminate
+the entire process tree even if the parent daemon detaches.
+
+```go
+// Use process group isolation in unit tests that spawn daemons
+testutil.NewSafeRunner(tfexec.NewRunnerWithSetpgid(hqPath))
 ```
 
 ## Testing Running-State Behavior
