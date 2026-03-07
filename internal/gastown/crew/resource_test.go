@@ -36,6 +36,10 @@ func (f *fakeRunner) GT(_ context.Context, args ...string) (string, error) {
 
 func (f *fakeRunner) BD(_ context.Context, _ ...string) (string, error) { return "", nil }
 
+func (f *fakeRunner) HQPath() string {
+	return hqPath
+}
+
 func (f *fakeRunner) calledWith(prefix ...string) bool {
 	want := strings.Join(prefix, " ")
 	for _, call := range f.calls {
