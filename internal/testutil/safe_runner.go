@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -220,9 +221,22 @@ func findTestDaemons(hqPath string) []daemonProcess {
 }
 
 // killProcess forcefully kills a process by PID.
-func killProcess(pid string) error {
-	cmd := exec.Command("kill", "-KILL", pid)
-	return cmd.Run()
+// It also attempts to kill the entire process group if the process is a group leader.
+func killProcess(pidStr string) error {
+	pid, err := strconv.Atoi(pidStr)
+	if err != nil {
+		return err
+	}
+
+	// Try to kill the process group first (indicated by negative PID)
+	// This only works if the process was started with Setpgid: true.
+	err = syscall.Kill(-pid, syscall.SIGKILL)
+	if err == nil {
+		return nil
+	}
+
+	// Fallback to killing just the process
+	return syscall.Kill(pid, syscall.SIGKILL)
 }
 
 // CleanupTestHQ terminates all Gas Town daemon processes associated with a test HQ.
