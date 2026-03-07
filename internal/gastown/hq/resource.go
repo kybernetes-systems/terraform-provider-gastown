@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -142,32 +143,28 @@ func (r *HQResource) Create(ctx context.Context, req resource.CreateRequest, res
 	}
 
 	// Configure unique Dolt port to avoid conflicts when multiple HQs are created
-	// This is especially important for tests but also benefits production use
-	port, err := getFreePort()
-	if err != nil {
-		resp.Diagnostics.AddWarning("Could not allocate free port, using default", err.Error())
-		port = 3307
-	}
+	// in a test environment. For production, we use the default ports.
+	if os.Getenv("TF_ACC") == "1" {
+		port, err := getFreePort()
+		if err != nil {
+			resp.Diagnostics.AddWarning("Could not allocate free port, using default", err.Error())
+			port = 3307
+		}
 
-	daemonConfigPath := filepath.Join(hqPath, "mayor", "daemon.json")
-	daemonConfig := map[string]interface{}{
-		"env": map[string]string{
-			"GT_DOLT_PORT": fmt.Sprintf("%d", port),
-		},
+		daemonConfigPath := filepath.Join(hqPath, "mayor", "daemon.json")
+		daemonConfig := map[string]interface{}{
+			"env": map[string]string{
+				"GT_DOLT_PORT": fmt.Sprintf("%d", port),
+			},
+		}
+		data, _ := json.MarshalIndent(daemonConfig, "", "  ")
+		_ = os.MkdirAll(filepath.Dir(daemonConfigPath), 0755)
+		_ = os.WriteFile(daemonConfigPath, data, 0644)
 	}
-	data, _ := json.MarshalIndent(daemonConfig, "", "  ")
-	_ = os.MkdirAll(filepath.Dir(daemonConfigPath), 0755)
-	_ = os.WriteFile(daemonConfigPath, data, 0644)
 
 	hqRunner := tfexec.NewRunner(hqPath)
-	// Start services (Dolt, etc) needed for subsequent rig/crew operations.
-	if out, err := hqRunner.GT(ctx, "up"); err != nil {
-		resp.Diagnostics.AddWarning("gt up encountered issues", fmt.Sprintf("output: %s\nerror: %v", out, err))
-	}
-
-	// Wait for Dolt to be ready
-	if err := waitForDolt(ctx, hqRunner); err != nil {
-		resp.Diagnostics.AddWarning("Dolt may not be ready", err.Error())
+	if err := ensureUp(ctx, hqPath, hqRunner, &resp.Diagnostics); err != nil {
+		return
 	}
 
 	name, err := readTownName(hqPath)
@@ -188,13 +185,19 @@ func (r *HQResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 		return
 	}
 
-	townJSON := filepath.Join(state.Path.ValueString(), "mayor", "town.json")
+	hqPath := state.Path.ValueString()
+	townJSON := filepath.Join(hqPath, "mayor", "town.json")
 	if _, err := os.Stat(townJSON); os.IsNotExist(err) {
 		resp.State.RemoveResource(ctx)
 		return
 	}
 
-	name, err := readTownName(state.Path.ValueString())
+	hqRunner := tfexec.NewRunner(hqPath)
+	// Ensure services are up during Read/Refresh, otherwise subsequent resource
+	// operations in the same plan will fail to connect to Dolt.
+	_ = ensureUp(ctx, hqPath, hqRunner, &resp.Diagnostics)
+
+	name, err := readTownName(hqPath)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading town name", err.Error())
 		return
@@ -242,6 +245,46 @@ func (r *HQResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 	if _, err := runner.GT(ctx, "uninstall", "--force"); err != nil {
 		resp.Diagnostics.AddError("Error deleting HQ", err.Error())
 	}
+}
+
+// ensureUp brings up Gas Town services and waits for Dolt to be ready.
+func ensureUp(ctx context.Context, hqPath string, runner tfexec.Runner, diags *diag.Diagnostics) error {
+	// Configure unique Dolt port to avoid conflicts when multiple HQs are created
+	// in a test environment. For production, we ensure daemon.json is removed
+	// so that gt uses its default discoverable ports.
+	daemonConfigPath := filepath.Join(hqPath, "mayor", "daemon.json")
+	if os.Getenv("TF_ACC") == "1" {
+		port, err := getFreePort()
+		if err != nil {
+			diags.AddWarning("Could not allocate free port, using default", err.Error())
+			port = 3307
+		}
+
+		daemonConfig := map[string]interface{}{
+			"env": map[string]string{
+				"GT_DOLT_PORT": fmt.Sprintf("%d", port),
+			},
+		}
+		data, _ := json.MarshalIndent(daemonConfig, "", "  ")
+		_ = os.MkdirAll(filepath.Dir(daemonConfigPath), 0755)
+		_ = os.WriteFile(daemonConfigPath, data, 0644)
+	} else {
+		// Ensure no stale port overrides exist in production
+		_ = os.Remove(daemonConfigPath)
+	}
+
+	// Start services (Dolt, etc) needed for subsequent rig/crew operations.
+	if out, err := runner.GT(ctx, "up"); err != nil {
+		diags.AddError("Failed to start Gas Town services", fmt.Sprintf("output: %s\nerror: %v", out, err))
+		return err
+	}
+
+	// Wait for Dolt to be ready
+	if err := waitForDolt(ctx, runner); err != nil {
+		diags.AddError("Dolt did not become ready", err.Error())
+		return err
+	}
+	return nil
 }
 
 func readTownName(hqPath string) (string, error) {
