@@ -25,3 +25,14 @@ When you destroy a rig, it goes dark. It does not disappear. The history stays i
 The polecats are not your problem. Don't touch them from the tests.
 
 ---
+
+## Operational Safety & Isolation
+
+This provider is designed for **strict surgical isolation**. It will not inadvertently modify or delete other Gas Town installations on your machine.
+
+- **Explicit Scoping**: Every `gt` command is executed with `GT_TOWN_ROOT` set to the specific `hq_path` defined in your HCL. 
+- **Path Validation**: All paths are strictly validated to be absolute and free of parent directory traversals (`..`).
+- **Process Isolation**: In test environments, every command runs in a unique process group, ensuring that all spawned daemons are reliably terminated during cleanup.
+- **Resource Locking**: Terraform only manages resources it has explicitly created or imported, using the specific paths recorded in its state file.
+
+For more details on the architecture and safety measures, see [DEVELOPMENT.md](./DEVELOPMENT.md).
