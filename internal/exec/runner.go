@@ -55,6 +55,7 @@ func run(ctx context.Context, bin, hqPath string, setpgid bool, args []string) (
 			cmd.Dir = cleanedHqPath
 		}
 		cmd.Env = append(cmd.Environ(), "GT_TOWN_ROOT="+cleanedHqPath)
+		cmd.Env = append(cmd.Environ(), "GT_HQ="+cleanedHqPath)
 	}
 
 	if setpgid {
