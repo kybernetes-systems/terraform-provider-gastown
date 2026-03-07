@@ -72,6 +72,9 @@ func (r *HQResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 			"owner_email": schema.StringAttribute{
 				Description: "Email address of the HQ owner.",
 				Optional:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 				Validators: []validator.String{
 					validators.EmailValidator{},
 				},
@@ -81,12 +84,18 @@ func (r *HQResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(true),
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.RequiresReplace(),
+				},
 			},
 			"no_beads": schema.BoolAttribute{
 				Description: "Whether to skip beads initialization. Defaults to false.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.RequiresReplace(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Description: "The name of the town (read from mayor/town.json).",

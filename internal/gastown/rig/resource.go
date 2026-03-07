@@ -100,6 +100,9 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Optional:    true,
 				Computed:    true,
 				Default:     int64default.StaticInt64(3),
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
+				},
 			},
 			"status": schema.StringAttribute{
 				Description: "Current operational status of the rig.",
