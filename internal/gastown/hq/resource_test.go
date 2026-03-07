@@ -14,7 +14,17 @@ import (
 	"github.com/kybernetes-systems/terraform-provider-gastown/internal/testutil"
 )
 
-func newHQ() resource.Resource { return hq.New() }
+func newHQ(hqPath string) resource.Resource {
+	r := hq.New()
+	r.(resource.ResourceWithConfigure).Configure(
+		context.Background(),
+		resource.ConfigureRequest{
+			ProviderData: testutil.NewSafeRunner(tfexec.NewRunner(hqPath)),
+		},
+		&resource.ConfigureResponse{},
+	)
+	return r
+}
 
 // buildHQConfig constructs a tfsdk.Config for the hq resource with the given attribute values.
 func buildHQConfig(t *testing.T, r resource.Resource, attrs map[string]tftypes.Value) tfsdk.Config {
@@ -46,7 +56,7 @@ func TestHQResource_Create_callsGtInstall(t *testing.T) {
 	// Cleanup any daemon processes spawned by this test
 	t.Cleanup(func() { testutil.CleanupTestHQ(t, hqPath) })
 
-	r := newHQ()
+	r := newHQ(hqPath)
 	cfg := buildHQConfig(t, r, map[string]tftypes.Value{
 		"path":        tftypes.NewValue(tftypes.String, hqPath),
 		"owner_email": tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
@@ -79,7 +89,7 @@ func TestHQResource_Read_idempotent(t *testing.T) {
 	// Cleanup any daemon processes spawned by this test
 	t.Cleanup(func() { testutil.CleanupTestHQ(t, hqPath) })
 
-	r := newHQ()
+	r := newHQ(hqPath)
 	cfg := buildHQConfig(t, r, map[string]tftypes.Value{
 		"path":        tftypes.NewValue(tftypes.String, hqPath),
 		"owner_email": tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
@@ -122,7 +132,7 @@ func TestHQResource_Read_idempotent(t *testing.T) {
 
 // Test 3: path attribute has RequiresReplace (ForceNew) plan modifier.
 func TestHQResource_ForceNew_onPathChange(t *testing.T) {
-	r := newHQ()
+	r := newHQ("")
 	var schemaResp resource.SchemaResponse
 	r.Schema(context.Background(), resource.SchemaRequest{}, &schemaResp)
 
@@ -149,7 +159,7 @@ func TestHQResource_Delete_callsUninstall(t *testing.T) {
 	// Cleanup any daemon processes spawned by this test
 	t.Cleanup(func() { testutil.CleanupTestHQ(t, hqPath) })
 
-	r := newHQ()
+	r := newHQ(hqPath)
 	cfg := buildHQConfig(t, r, map[string]tftypes.Value{
 		"path":        tftypes.NewValue(tftypes.String, hqPath),
 		"owner_email": tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
