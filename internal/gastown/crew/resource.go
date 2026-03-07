@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -17,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	tfexec "github.com/kybernetes-systems/terraform-provider-gastown/internal/exec"
+	"github.com/kybernetes-systems/terraform-provider-gastown/internal/validators"
 )
 
 var _ resource.Resource = &CrewResource{}
@@ -59,10 +58,7 @@ func (r *CrewResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "Path to the Gas Town HQ directory.",
 				Required:    true,
 				Validators: []validator.String{
-					stringvalidator.RegexMatches(
-						regexp.MustCompile(`^(/|[a-zA-Z]:\\)`),
-						"path must be absolute",
-					),
+					validators.PathValidator{},
 				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -72,10 +68,7 @@ func (r *CrewResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "Name of the rig this crew member belongs to.",
 				Required:    true,
 				Validators: []validator.String{
-					stringvalidator.RegexMatches(
-						regexp.MustCompile(`^[a-zA-Z0-9_-]+$`),
-						"rig name must contain only alphanumeric characters, hyphens, and underscores",
-					),
+					validators.SafeNameValidator{},
 				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -85,10 +78,7 @@ func (r *CrewResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "Name of the crew member.",
 				Required:    true,
 				Validators: []validator.String{
-					stringvalidator.RegexMatches(
-						regexp.MustCompile(`^[a-zA-Z0-9_-]+$`),
-						"name must contain only alphanumeric characters, hyphens, and underscores",
-					),
+					validators.SafeNameValidator{},
 				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -98,10 +88,7 @@ func (r *CrewResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "Role assigned to the crew member (e.g., 'coder', 'reviewer').",
 				Required:    true,
 				Validators: []validator.String{
-					stringvalidator.RegexMatches(
-						regexp.MustCompile(`^[a-zA-Z0-9_-]+$`),
-						"role must contain only alphanumeric characters, hyphens, and underscores",
-					),
+					validators.RoleValidator{},
 				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),

@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -244,7 +245,16 @@ func (r *HQResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 }
 
 func readTownName(hqPath string) (string, error) {
-	data, err := os.ReadFile(filepath.Join(hqPath, "mayor", "town.json"))
+	// Use filepath.Join to safely construct path
+	townJSON := filepath.Join(hqPath, "mayor", "town.json")
+	
+	// Double check that it's still inside hqPath (defense in depth)
+	rel, err := filepath.Rel(hqPath, townJSON)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return "", fmt.Errorf("invalid HQ path: %s", hqPath)
+	}
+
+	data, err := os.ReadFile(townJSON)
 	if err != nil {
 		return "", fmt.Errorf("reading mayor/town.json: %w", err)
 	}

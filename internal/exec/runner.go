@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -41,10 +42,11 @@ func (r *runner) HQPath() string {
 func run(ctx context.Context, bin, hqPath string, args []string) (string, error) {
 	cmd := exec.CommandContext(ctx, bin, args...)
 	if hqPath != "" {
-		if _, err := os.Stat(hqPath); err == nil {
-			cmd.Dir = hqPath
+		cleanedHqPath := filepath.Clean(hqPath)
+		if _, err := os.Stat(cleanedHqPath); err == nil {
+			cmd.Dir = cleanedHqPath
 		}
-		cmd.Env = append(cmd.Environ(), "GT_TOWN_ROOT="+hqPath)
+		cmd.Env = append(cmd.Environ(), "GT_TOWN_ROOT="+cleanedHqPath)
 	}
 	var combined bytes.Buffer
 	cmd.Stdout = &combined

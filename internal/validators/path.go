@@ -74,7 +74,7 @@ func (v SafeNameValidator) MarkdownDescription(ctx context.Context) string {
 	return v.Description(ctx)
 }
 
-var safeNamePattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+var safeNamePattern = regexp.MustCompile(`^[a-zA-Z0-9_][a-zA-Z0-9_-]*$`)
 
 func (v SafeNameValidator) ValidateString(ctx context.Context, req validator.StringRequest, resp *validator.StringResponse) {
 	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {

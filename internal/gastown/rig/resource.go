@@ -60,10 +60,7 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Description: "Path to the Gas Town HQ directory.",
 				Required:    true,
 				Validators: []validator.String{
-					stringvalidator.RegexMatches(
-						regexp.MustCompile(`^(/|[a-zA-Z]:\\)`),
-						"path must be absolute",
-					),
+					validators.PathValidator{},
 				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -73,10 +70,7 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Description: "Name of the rig (used as identifier).",
 				Required:    true,
 				Validators: []validator.String{
-					stringvalidator.RegexMatches(
-						regexp.MustCompile(`^[a-zA-Z0-9_-]+$`),
-						"name must contain only alphanumeric characters, hyphens, and underscores",
-					),
+					validators.SafeNameValidator{},
 				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -86,10 +80,7 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Description: "Git repository URL or local path for the rig.",
 				Required:    true,
 				Validators: []validator.String{
-					stringvalidator.RegexMatches(
-						regexp.MustCompile(`^[a-zA-Z0-9._~:/?#\[\]@!$&'()*+,;=%-]+$`),
-						"repo must be a valid URL or path",
-					),
+					validators.RepoURLValidator{},
 				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -100,6 +91,9 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Optional:    true,
 				Computed:    true,
 				Default:     stringdefault.StaticString("claude"),
+				Validators: []validator.String{
+					validators.SafeNameValidator{},
+				},
 			},
 			"max_polecats": schema.Int64Attribute{
 				Description: "Maximum number of polecats (workers) for the rig. Defaults to 3.",
