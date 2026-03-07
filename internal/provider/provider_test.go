@@ -11,12 +11,17 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
+	tfexec "github.com/kybernetes-systems/terraform-provider-gastown/internal/exec"
 	ourprovider "github.com/kybernetes-systems/terraform-provider-gastown/internal/provider"
+	"github.com/kybernetes-systems/terraform-provider-gastown/internal/testutil"
 )
 
 var (
 	TestAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
 		"gastown": providerserver.NewProtocol6WithError(ourprovider.New("test")()),
+	}
+	TestAccFakeProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
+		"gastown": providerserver.NewProtocol6WithError(ourprovider.NewForTesting("test", testutil.NewFakeRunner)()),
 	}
 )
 
@@ -98,5 +103,34 @@ func TestHQ_Schema_NoBeads(t *testing.T) {
 
 	if _, ok := schemaResp.Schema.Attributes["no_beads"]; !ok {
 		t.Fatal("gastown_hq schema missing no_beads attribute")
+	}
+}
+
+// TestProvider_NewForTesting verifies NewForTesting factory creates provider with injected runner.
+func TestProvider_NewForTesting(t *testing.T) {
+	factory := ourprovider.NewForTesting("test", testutil.NewFakeRunner)
+	p := factory()
+
+	var schemaResp provider.SchemaResponse
+	p.Schema(context.Background(), provider.SchemaRequest{}, &schemaResp)
+
+	configVal := tftypes.NewValue(
+		tftypes.Object{AttributeTypes: map[string]tftypes.Type{"hq_path": tftypes.String}},
+		map[string]tftypes.Value{"hq_path": tftypes.NewValue(tftypes.String, "/tmp/testhq")},
+	)
+	req := provider.ConfigureRequest{
+		Config: tfsdk.Config{Raw: configVal, Schema: schemaResp.Schema},
+	}
+	var resp provider.ConfigureResponse
+	p.Configure(context.Background(), req, &resp)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("unexpected errors: %v", resp.Diagnostics)
+	}
+
+	// ResourceData should be a FakeRunner
+	_, ok := resp.ResourceData.(tfexec.Runner)
+	if !ok {
+		t.Errorf("expected ResourceData to implement Runner interface, got %T", resp.ResourceData)
 	}
 }
