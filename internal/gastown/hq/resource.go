@@ -165,10 +165,13 @@ func (r *HQResource) Create(ctx context.Context, req resource.CreateRequest, res
 	// Configure unique Dolt port to avoid conflicts when multiple HQs are created
 	// in a test environment. For production, we use the default ports.
 	if os.Getenv("TF_ACC") == "1" {
-		port, err := getFreePort()
+		port, listener, err := getFreePort()
 		if err != nil {
 			resp.Diagnostics.AddWarning("Could not allocate free port, using default", err.Error())
 			port = 3307
+		}
+		if listener != nil {
+			defer listener.Close()
 		}
 
 		daemonConfigPath := filepath.Join(hqPath, "mayor", "daemon.json")
@@ -274,10 +277,13 @@ func ensureUp(ctx context.Context, hqPath string, runner tfexec.Runner, diags *d
 	// so that gt uses its default discoverable ports.
 	daemonConfigPath := filepath.Join(hqPath, "mayor", "daemon.json")
 	if os.Getenv("TF_ACC") == "1" {
-		port, err := getFreePort()
+		port, listener, err := getFreePort()
 		if err != nil {
 			diags.AddWarning("Could not allocate free port, using default", err.Error())
 			port = 3307
+		}
+		if listener != nil {
+			defer listener.Close()
 		}
 
 		daemonConfig := map[string]interface{}{
