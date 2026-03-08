@@ -140,6 +140,10 @@ func (r *CrewResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	}
 
 	if _, err := os.Stat(state.HQPath.ValueString()); os.IsNotExist(err) {
+		resp.Diagnostics.AddWarning(
+			"HQ path not found",
+			fmt.Sprintf("HQ directory %q does not exist. Removing crew resource from state.", state.HQPath.ValueString()),
+		)
 		resp.State.RemoveResource(ctx)
 		return
 	}
