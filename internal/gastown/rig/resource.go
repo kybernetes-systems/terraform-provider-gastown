@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -226,21 +227,25 @@ func (r *RigResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 }
 
 func (r *RigResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan rigModel
+	var plan, state rigModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	runner := r.runner_(plan.HQPath.ValueString())
 
-	if _, err := runner.GT(ctx, "rig", "config", "set", plan.Name.ValueString(), "runtime", plan.Runtime.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Error updating rig runtime", err.Error())
-		return
+	// Only update runtime if it actually changed
+	if !plan.Runtime.Equal(state.Runtime) {
+		if _, err := runner.GT(ctx, "rig", "config", "set", plan.Name.ValueString(), "runtime", plan.Runtime.ValueString()); err != nil {
+			resp.Diagnostics.AddError("Error updating rig runtime", err.Error())
+			return
+		}
 	}
 
-	// Update max_polecats if changed
-	if !plan.MaxPolecats.IsNull() && !plan.MaxPolecats.IsUnknown() {
+	// Only update max_polecats if it actually changed
+	if !plan.MaxPolecats.Equal(state.MaxPolecats) {
 		maxPolecats := fmt.Sprintf("%d", plan.MaxPolecats.ValueInt64())
 		if _, err := runner.GT(ctx, "rig", "config", "set", plan.Name.ValueString(), "max_polecats", maxPolecats); err != nil {
 			resp.Diagnostics.AddError("Error updating rig max_polecats", err.Error())
