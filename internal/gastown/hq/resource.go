@@ -145,8 +145,9 @@ func (r *HQResource) Create(ctx context.Context, req resource.CreateRequest, res
 	// Use gt's built-in --dolt-port flag for test environments to avoid
 	// TOCTOU race in getFreePort(). For production, let gt use defaults.
 	if os.Getenv("TF_ACC") == "1" {
-		port, err := getFreePort()
+		port, l, err := getFreePort()
 		if err == nil {
+			defer l.Close() // Close right before we return, but gt will bind its own
 			args = append(args, "--dolt-port", fmt.Sprintf("%d", port))
 		}
 	}
@@ -351,11 +352,10 @@ func waitForDolt(ctx context.Context, runner tfexec.Runner) error {
 // but using OS-assigned ephemeral ports and gt's error handling mitigates this.
 // Note: The TOCTOU is now reduced because gt install uses --dolt-port flag
 // which handles port allocation atomically within gt's process.
-func getFreePort() (int, error) {
+func getFreePort() (int, net.Listener, error) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port, nil
+	return l.Addr().(*net.TCPAddr).Port, l, nil
 }
