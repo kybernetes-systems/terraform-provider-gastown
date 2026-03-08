@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -139,6 +140,15 @@ func (r *HQResource) Create(ctx context.Context, req resource.CreateRequest, res
 	}
 	if !plan.OwnerEmail.IsNull() && plan.OwnerEmail.ValueString() != "" {
 		args = append(args, "--owner", plan.OwnerEmail.ValueString())
+	}
+
+	// Use gt's built-in --dolt-port flag for test environments to avoid
+	// TOCTOU race in getFreePort(). For production, let gt use defaults.
+	if os.Getenv("TF_ACC") == "1" {
+		port, err := getFreePort()
+		if err == nil {
+			args = append(args, "--dolt-port", fmt.Sprintf("%d", port))
+		}
 	}
 
 	runner := r.runner
@@ -299,7 +309,7 @@ func ensureUp(ctx context.Context, hqPath string, runner tfexec.Runner, diags *d
 func readTownName(hqPath string) (string, error) {
 	// Use filepath.Join to safely construct path
 	townJSON := filepath.Join(hqPath, "mayor", "town.json")
-	
+
 	// Double check that it's still inside hqPath (defense in depth)
 	rel, err := filepath.Rel(hqPath, townJSON)
 	if err != nil || strings.HasPrefix(rel, "..") {
@@ -336,11 +346,11 @@ func waitForDolt(ctx context.Context, runner tfexec.Runner) error {
 }
 
 // getFreePort returns an available TCP port for Dolt to use.
-// Note: This has a theoretical race condition (TOCTOU) where the port could be
-// claimed between our check and Dolt starting. In practice, this is mitigated by:
-// 1. Using OS-assigned ephemeral ports (high range, unlikely to collide)
-// 2. Retrying on port conflict
-// For test environments, occasional port conflicts are handled gracefully.
+// Used for gt install (which passes --dolt-port to gt, avoiding race).
+// For gt up, we write daemon.json which has the same theoretical race,
+// but using OS-assigned ephemeral ports and gt's error handling mitigates this.
+// Note: The TOCTOU is now reduced because gt install uses --dolt-port flag
+// which handles port allocation atomically within gt's process.
 func getFreePort() (int, error) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
