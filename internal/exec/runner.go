@@ -19,8 +19,8 @@ type Runner interface {
 }
 
 type runner struct {
-	hqPath   string
-	setpgid  bool
+	hqPath  string
+	setpgid bool
 }
 
 // NewRunner returns a Runner that executes gt and bd with the given HQ path
@@ -89,12 +89,27 @@ func run(ctx context.Context, bin, hqPath string, setpgid bool, args []string) (
 }
 
 // isNotFoundError checks if the error output indicates a "not found" condition.
-// This centralizes the brittle string matching in one place.
+// This centralizes the string matching in one place.
+// TODO: Replace with structured error codes from gt CLI (e.g., exit codes or JSON errors)
+// to avoid brittleness if error messages change.
 func isNotFoundError(output string) bool {
 	lower := strings.ToLower(output)
-	return strings.Contains(lower, "not found") ||
-		strings.Contains(lower, "no such") ||
-		strings.Contains(lower, "does not exist")
+	notFoundPatterns := []string{
+		"not found",
+		"no such",
+		"does not exist",
+		"doesn't exist",
+		"could not find",
+		"no such file",
+		"no such directory",
+		"resource not found",
+	}
+	for _, pattern := range notFoundPatterns {
+		if strings.Contains(lower, pattern) {
+			return true
+		}
+	}
+	return false
 }
 
 // extractResourceType attempts to determine the resource type from command arguments.
