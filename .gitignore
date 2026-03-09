@@ -1,4 +1,14 @@
+# Ignore Beads runtime and backup files
+.beads/backup/
+.beads/*.pid
+.beads/*.port
+.beads/*.activity
+.beads/*.log
 
-# Dolt database files (added by bd init)
-.dolt/
-*.db
+# Ignore Beads local cache
+.beads/beads.db
+.beads/dolt/
+
+# Ignore local Dolt config
+.doltcfg/
+.beads/.doltcfg/
