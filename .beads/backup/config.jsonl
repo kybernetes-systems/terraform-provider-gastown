@@ -1,6 +1,5 @@
 {"key":"auto_compact_enabled","value":"false"}
 {"key":"compact_batch_size","value":"50"}
-{"key":"compact_model","value":"claude-haiku-4-5-20251001"}
 {"key":"compact_parallel_workers","value":"5"}
 {"key":"compact_tier1_days","value":"30"}
 {"key":"compact_tier1_dep_levels","value":"2"}
@@ -8,9 +7,5 @@
 {"key":"compact_tier2_days","value":"90"}
 {"key":"compact_tier2_dep_levels","value":"5"}
 {"key":"compaction_enabled","value":"false"}
-{"key":"issue_prefix","value":"tfgt"}
-{"key":"kv.memory.orphaned-gas-town-and-tmux-processes-in-tests","value":"Orphaned Gas Town and tmux processes in tests are now cleaned up using a robust process group and custom tmux socket scanning logic in internal/testutil/safe_runner.go."}
-{"key":"kv.memory.schema-documentation-must-adhere-to-adr-0008-specifically","value":"Schema documentation must adhere to ADR 0008, specifically using Architect-voice and documenting ForceNew/Computed behaviors. Rig deletion must mention docking (ADR 0003)."}
-{"key":"kv.memory.terraform-1-7-mock-provider-is-recommended-for","value":"Terraform 1.7+ mock_provider is recommended for testing provider logic without spawning real Gas Town processes."}
+{"key":"issue_prefix","value":"terraform-provider-gastown"}
 {"key":"schema_version","value":"6"}
-{"key":"types.custom","value":"molecule,gate,convoy,merge-request,slot,agent,role,rig,message"}
