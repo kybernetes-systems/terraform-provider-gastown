@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -144,10 +145,10 @@ func (r *HQResource) Create(ctx context.Context, req resource.CreateRequest, res
 
 	// Use gt's built-in --dolt-port flag for test environments to avoid
 	// TOCTOU race in getFreePort(). For production, let gt use defaults.
-	if os.Getenv("TF_ACC") == "1" {
-		port, l, err := getFreePort()
+	isTest := os.Getenv("TF_ACC") == "1" || strings.HasSuffix(os.Args[0], ".test")
+	if isTest {
+		port, err := getFreePort()
 		if err == nil {
-			defer l.Close() // Close right before we return, but gt will bind its own
 			args = append(args, "--dolt-port", fmt.Sprintf("%d", port))
 		}
 	}
@@ -164,14 +165,11 @@ func (r *HQResource) Create(ctx context.Context, req resource.CreateRequest, res
 
 	// Configure unique Dolt port to avoid conflicts when multiple HQs are created
 	// in a test environment. For production, we use the default ports.
-	if os.Getenv("TF_ACC") == "1" {
-		port, listener, err := getFreePort()
+	if isTest {
+		port, err := getFreePort()
 		if err != nil {
 			resp.Diagnostics.AddWarning("Could not allocate free port, using default", err.Error())
 			port = 3307
-		}
-		if listener != nil {
-			defer listener.Close()
 		}
 
 		daemonConfigPath := filepath.Join(hqPath, "mayor", "daemon.json")
@@ -273,27 +271,42 @@ func (r *HQResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 // ensureUp brings up Gas Town services and waits for Dolt to be ready.
 func ensureUp(ctx context.Context, hqPath string, runner tfexec.Runner, diags *diag.Diagnostics) error {
 	// Configure unique Dolt port to avoid conflicts when multiple HQs are created
-	// in a test environment. For production, we ensure daemon.json is removed
-	// so that gt uses its default discoverable ports.
+	// in a test environment.
 	daemonConfigPath := filepath.Join(hqPath, "mayor", "daemon.json")
-	if os.Getenv("TF_ACC") == "1" {
-		port, listener, err := getFreePort()
-		if err != nil {
-			diags.AddWarning("Could not allocate free port, using default", err.Error())
-			port = 3307
-		}
-		if listener != nil {
-			defer listener.Close()
+	isTest := os.Getenv("TF_ACC") == "1" || strings.HasSuffix(os.Args[0], ".test")
+
+	if isTest {
+		// Check if we already have a port configured
+		existingPort := 0
+		if data, err := os.ReadFile(daemonConfigPath); err == nil {
+			var config struct {
+				Env map[string]string `json:"env"`
+			}
+			if err := json.Unmarshal(data, &config); err == nil {
+				if portStr, ok := config.Env["GT_DOLT_PORT"]; ok {
+					if p, err := strconv.Atoi(portStr); err == nil {
+						existingPort = p
+					}
+				}
+			}
 		}
 
-		daemonConfig := map[string]interface{}{
-			"env": map[string]string{
-				"GT_DOLT_PORT": fmt.Sprintf("%d", port),
-			},
+		if existingPort == 0 {
+			port, err := getFreePort()
+			if err != nil {
+				diags.AddWarning("Could not allocate free port, using default", err.Error())
+				port = 3307
+			}
+
+			daemonConfig := map[string]interface{}{
+				"env": map[string]string{
+					"GT_DOLT_PORT": fmt.Sprintf("%d", port),
+				},
+			}
+			data, _ := json.MarshalIndent(daemonConfig, "", "  ")
+			_ = os.MkdirAll(filepath.Dir(daemonConfigPath), 0755)
+			_ = os.WriteFile(daemonConfigPath, data, 0644)
 		}
-		data, _ := json.MarshalIndent(daemonConfig, "", "  ")
-		_ = os.MkdirAll(filepath.Dir(daemonConfigPath), 0755)
-		_ = os.WriteFile(daemonConfigPath, data, 0644)
 	} else {
 		// Ensure no stale port overrides exist in production
 		_ = os.Remove(daemonConfigPath)
@@ -353,15 +366,13 @@ func waitForDolt(ctx context.Context, runner tfexec.Runner) error {
 }
 
 // getFreePort returns an available TCP port for Dolt to use.
-// Used for gt install (which passes --dolt-port to gt, avoiding race).
-// For gt up, we write daemon.json which has the same theoretical race,
-// but using OS-assigned ephemeral ports and gt's error handling mitigates this.
-// Note: The TOCTOU is now reduced because gt install uses --dolt-port flag
-// which handles port allocation atomically within gt's process.
-func getFreePort() (int, net.Listener, error) {
+// It opens a listener on an ephemeral port and closes it immediately.
+func getFreePort() (int, error) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return 0, nil, err
+		return 0, err
 	}
-	return l.Addr().(*net.TCPAddr).Port, l, nil
+	port := l.Addr().(*net.TCPAddr).Port
+	l.Close()
+	return port, nil
 }

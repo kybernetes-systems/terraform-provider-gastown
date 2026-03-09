@@ -191,13 +191,20 @@ func TestRigResource_Update_runtime(t *testing.T) {
 	fake := &fakeRunner{}
 	r := newRigWithRunner(fake)
 
-	attrs := baseAttrs()
-	attrs["id"] = tftypes.NewValue(tftypes.String, hqPath+"/"+rigName)
-	attrs["status"] = tftypes.NewValue(tftypes.String, "operational")
-	attrs["prefix"] = tftypes.NewValue(tftypes.String, "tr")
-	attrs["runtime"] = tftypes.NewValue(tftypes.String, "gemini")
-	plan := rigPlan(t, r, attrs)
-	state := rigState(t, r, attrs)
+	stateAttrs := baseAttrs()
+	stateAttrs["id"] = tftypes.NewValue(tftypes.String, hqPath+"/"+rigName)
+	stateAttrs["status"] = tftypes.NewValue(tftypes.String, "operational")
+	stateAttrs["prefix"] = tftypes.NewValue(tftypes.String, "tr")
+	stateAttrs["runtime"] = tftypes.NewValue(tftypes.String, "claude")
+
+	planAttrs := baseAttrs()
+	planAttrs["id"] = tftypes.NewValue(tftypes.String, hqPath+"/"+rigName)
+	planAttrs["status"] = tftypes.NewValue(tftypes.String, "operational")
+	planAttrs["prefix"] = tftypes.NewValue(tftypes.String, "tr")
+	planAttrs["runtime"] = tftypes.NewValue(tftypes.String, "gemini")
+
+	plan := rigPlan(t, r, planAttrs)
+	state := rigState(t, r, stateAttrs)
 
 	var resp resource.UpdateResponse
 	resp.State = state
