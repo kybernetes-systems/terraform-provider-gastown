@@ -46,27 +46,23 @@ func (r *CrewResource) Metadata(_ context.Context, req resource.MetadataRequest,
 
 func (r *CrewResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages a crew member assignment within a Gas Town rig. Crew members represent " +
-			"individual agents or workers that operate within a rig's context, each with a specific functional role. " +
-			"A crew member's identity is tied to both the rig and the role they perform—changing either requires " +
-			"replacement of the crew resource. Crew assignments are stored in the HQ's Dolt database and synced " +
-			"across all workspace clones.",
+		MarkdownDescription: "Manages a Gas Town crew member assignment within a rig. " +
+			"A crew member is a persistent human workspace with an assigned role; " +
+			"crew are created within rigs and participate in convoys. " +
+			"Deletion calls `gt crew remove` to remove the crew member from the rig.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Description: "Unique identifier for the crew resource, constructed as the join of hq_path, rig name, " +
-					"and crew member name. This computed value remains stable throughout the resource lifecycle " +
-					"and is used for internal resource tracking.",
-				Computed: true,
+				Description: "Computed identifier for this crew resource, constructed as `<hq_path>/<rig>/<name>`. " +
+					"Uniquely identifies the crew member within the Terraform state.",
+				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"hq_path": schema.StringAttribute{
-				Description: "Absolute path to the Gas Town HQ directory where this crew member will be registered. " +
-					"The crew is associated with this specific HQ instance for operational and state tracking purposes. " +
-					"Changing this value after creation forces replacement of the crew member—the existing assignment " +
-					"is removed and a new one is created in the specified HQ.",
-				Required: true,
+				Description: "Absolute filesystem path to the Gas Town HQ directory containing the parent rig. " +
+					"Immutable after creation; changing this value forces replacement of the resource.",
+				Required:    true,
 				Validators: []validator.String{
 					validators.PathValidator{},
 				},
@@ -75,12 +71,11 @@ func (r *CrewResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				},
 			},
 			"rig": schema.StringAttribute{
-				Description: "Name of the rig to which this crew member is assigned. The rig determines the " +
-					"execution context, available resources, and operational scope for this crew member. The crew " +
-					"member operates within the rig's configured runtime environment and respects the rig's " +
-					"max_polecats limits. Changing this value after creation forces replacement of the crew member. " +
-					"Must be a valid safe name containing only alphanumeric characters, hyphens, and underscores.",
-				Required: true,
+				Description: "Name of the rig to which this crew member is assigned. " +
+					"Immutable after creation; changing this value forces replacement of the resource " +
+					"(the crew is removed from the old rig, a new crew member is created in the new rig). " +
+					"Corresponds to the `--rig` flag of `gt crew add`.",
+				Required:    true,
 				Validators: []validator.String{
 					validators.SafeNameValidator{},
 				},
@@ -89,12 +84,11 @@ func (r *CrewResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				},
 			},
 			"name": schema.StringAttribute{
-				Description: "Unique name for this crew member within the rig. The name serves as the primary " +
-					"identifier for crew operations and is used in logs, status output, and operational commands. " +
-					"Set once at creation; changing this value forces replacement of the crew member. " +
-					"Corresponds to the <name> argument of `gt crew add`. " +
-					"Must be a valid safe name containing only alphanumeric characters, hyphens, and underscores.",
-				Required: true,
+				Description: "Unique name for the crew member within this rig, used as the primary identifier. " +
+					"Immutable after creation; changing this value forces replacement of the resource " +
+					"(the existing crew is removed, a new one is created). " +
+					"Corresponds to the <name> argument of `gt crew add`.",
+				Required:    true,
 				Validators: []validator.String{
 					validators.SafeNameValidator{},
 				},
@@ -103,12 +97,11 @@ func (r *CrewResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				},
 			},
 			"role": schema.StringAttribute{
-				Description: "Functional role assigned to this crew member, determining its capabilities and " +
-					"default behaviors. Standard roles include 'coder' for development tasks and 'reviewer' for " +
-					"code review operations. Each role has a specific implementation within the rig's repository " +
-					"that defines how the crew member processes tasks. Changing this value after creation forces " +
-					"replacement of the crew member to ensure proper role initialization.",
-				Required: true,
+				Description: "Operational role assigned to this crew member (e.g., 'coder', 'reviewer', 'tester'). " +
+					"Determines the types of work the crew member may claim and perform. " +
+					"Immutable after creation; changing this value forces replacement of the resource. " +
+					"Corresponds to the <role> argument of `gt crew add`.",
+				Required:    true,
 				Validators: []validator.String{
 					validators.RoleValidator{},
 				},

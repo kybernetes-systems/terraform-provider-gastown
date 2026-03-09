@@ -49,27 +49,25 @@ func (r *RigResource) Metadata(_ context.Context, req resource.MetadataRequest, 
 
 func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages a Gas Town rig—a declarative agent workspace that executes tasks through " +
-			"a Git-backed operational model. Rigs combine a source repository, runtime configuration, and " +
-			"worker pool (polecats) into a reproducible execution environment. " +
-			"**Important**: Destroying a rig resource calls `gt rig stop` followed by `gt rig dock`—the rig " +
-			"directory and its operational history are preserved on disk. To fully remove a rig, use " +
-			"`gt rig remove` outside of Terraform.",
+		MarkdownDescription: "Manages a Gas Town rig within an HQ workspace. " +
+			"A rig is a deployable unit of work backed by a git repository; " +
+			"it contains configuration for ephemeral agents (polecasts) and may have crew assigned. " +
+			"Deletion calls `gt rig stop` followed by `gt rig dock` to persistently shut down the rig " +
+			"without removing its operational history (ADR 0003).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Description: "Unique identifier for the rig resource, constructed as the join of hq_path and rig name. " +
-					"This computed value remains stable throughout the resource lifecycle and is used for internal resource tracking.",
-				Computed: true,
+				Description: "Computed identifier for this rig resource, constructed as `<hq_path>/<name>`. " +
+					"Uniquely identifies the rig within the Terraform state.",
+				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"hq_path": schema.StringAttribute{
-				Description: "Absolute path to the Gas Town HQ directory where this rig will be registered and operated. " +
-					"The rig's operational state, configuration, and worktrees are stored within this HQ. " +
-					"Changing this value after creation forces replacement of the rig—Terraform will destroy the existing " +
-					"rig (stopping and docking it) and create a new one in the specified HQ.",
-				Required: true,
+				Description: "Absolute filesystem path to the Gas Town HQ directory containing this rig. " +
+					"Immutable after creation; changing this value forces replacement of the resource " +
+					"(the rig is docked in the old HQ, a new rig is created in the new HQ).",
+				Required:    true,
 				Validators: []validator.String{
 					validators.PathValidator{},
 				},
@@ -78,11 +76,11 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				},
 			},
 			"name": schema.StringAttribute{
-				Description: "Unique name for the rig within this HQ, used as the primary identifier for all rig operations. " +
-					"Set once at creation; changing this value forces replacement of the resource (the existing rig is stopped " +
-					"and docked, a new one is created). Corresponds to the <name> argument of `gt rig add`. " +
-					"Must be a valid safe name containing only alphanumeric characters, hyphens, and underscores.",
-				Required: true,
+				Description: "Unique name for the rig within this HQ, used as the primary identifier in Gas Town operations. " +
+					"Immutable after creation; changing this value forces replacement of the resource " +
+					"(the existing rig is docked, a new one is created). " +
+					"Corresponds to the <name> argument of `gt rig add`.",
+				Required:    true,
 				Validators: []validator.String{
 					validators.SafeNameValidator{},
 				},
@@ -91,11 +89,10 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				},
 			},
 			"repo": schema.StringAttribute{
-				Description: "Git repository URL or local filesystem path that serves as the source for this rig. " +
-					"The repository is cloned into the rig's workspace and defines the available agent configurations, " +
-					"workflows, and operational code. Changing this value after creation forces replacement of the rig. " +
-					"Supports HTTPS URLs, SSH URLs (git@host:path format), and local absolute paths.",
-				Required: true,
+				Description: "Git repository URL or local filesystem path that provides the rig's source configuration. " +
+					"Immutable after creation; changing this value forces replacement of the resource. " +
+					"Corresponds to the <repo> argument of `gt rig add`.",
+				Required:    true,
 				Validators: []validator.String{
 					validators.RepoURLValidator{},
 				},
@@ -104,46 +101,38 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				},
 			},
 			"runtime": schema.StringAttribute{
-				Description: "Runtime environment that determines how the rig interprets and executes tasks. " +
-					"Common values include 'claude' for standard Claude Code operations. The runtime affects " +
-					"available capabilities, environment setup, and execution constraints. Can be modified after " +
-					"creation without replacement via `gt rig config set`. Defaults to the Gas Town system default of 'claude'.",
-				Optional: true,
-				Computed: true,
-				Default:  stringdefault.StaticString("claude"),
+				Description: "Runtime environment identifier for agents spawned by this rig (e.g., 'claude', 'openai'). " +
+					"Defaults to 'claude'. May be modified after creation without forcing replacement.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString("claude"),
 				Validators: []validator.String{
 					validators.SafeNameValidator{},
 				},
 			},
 			"max_polecats": schema.Int64Attribute{
-				Description: "Maximum number of polecats (concurrent workers) that this rig may spawn for task execution. " +
-					"Higher values enable more parallelism but consume more system resources. For test environments, " +
-					"consider setting this to 0 to prevent worker spawning. Can be modified after creation without replacement. " +
-					"Defaults to the Gas Town system default of 3. Changing this value after creation forces replacement " +
-					"to ensure clean worker pool initialization.",
-				Optional: true,
-				Computed: true,
-				Default:  int64default.StaticInt64(3),
+				Description: "Maximum number of polecat agents (ephemeral workers) this rig may spawn concurrently. " +
+					"Defaults to 3. Set to 0 to prevent any polecat spawning. " +
+					"Immutable after creation; changing this value forces replacement of the resource.",
+				Optional:    true,
+				Computed:    true,
+				Default:     int64default.StaticInt64(3),
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.RequiresReplace(),
 				},
 			},
 			"status": schema.StringAttribute{
-				Description: "Current operational status of the rig as reported by Gas Town, such as 'operational', " +
-					"'parked', or 'docked'. This computed value reflects the actual state of the rig process and " +
-					"is updated during each Terraform refresh. A status of 'docked' indicates the rig is persistently " +
-					"offline and will not auto-restart.",
-				Computed: true,
+				Description: "Current operational status of the rig as reported by `gt rig status` (e.g., 'operational', 'docked'). " +
+					"Computed from the live Gas Town state; may change outside Terraform if the rig is parked or docked via CLI.",
+				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"prefix": schema.StringAttribute{
-				Description: "Beads prefix assigned to this rig, read from `gt rig status` output during refresh. " +
-					"This prefix determines the naming convention for issues and beads created by this rig's crews. " +
-					"Computed at creation time and updated during refresh to reflect any external configuration changes. " +
-					"The prefix includes a trailing hyphen (e.g., 'rig-name-') which is stripped in this attribute.",
-				Computed: true,
+				Description: "Beads issue prefix assigned to this rig, read from `gt rig status` output after creation. " +
+					"Computed from Gas Town configuration; used to identify issues belonging to this rig in the beads system.",
+				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
