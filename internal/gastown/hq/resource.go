@@ -53,16 +53,24 @@ func (r *HQResource) Metadata(_ context.Context, req resource.MetadataRequest, r
 
 func (r *HQResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		MarkdownDescription: "Manages a Gas Town HQ workspace installation. " +
+			"The HQ is the root operational context for all Gas Town resources; " +
+			"rigs and crew are created within an HQ. " +
+			"Deletion triggers `gt uninstall` to remove the workspace.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Description: "Unique identifier for the HQ resource. Same as the path.",
+				Description: "Computed identifier for this HQ resource, always identical to the path attribute. " +
+					"Corresponds to the filesystem location where the HQ is installed.",
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"path": schema.StringAttribute{
-				Description: "Filesystem path where the Gas Town HQ will be installed.",
+				Description: "Absolute filesystem path where the Gas Town HQ will be installed and maintained. " +
+					"Immutable after creation; changing this value forces replacement of the entire resource " +
+					"(the existing HQ is uninstalled, a new one is created at the new path). " +
+					"Corresponds to the <path> argument of `gt install`.",
 				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -72,7 +80,9 @@ func (r *HQResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 				},
 			},
 			"owner_email": schema.StringAttribute{
-				Description: "Email address of the HQ owner.",
+				Description: "Email address of the HQ owner, stored in the workspace configuration for operational attribution. " +
+					"Immutable after creation; changing this value forces replacement of the resource. " +
+					"Optional; if omitted, no owner is configured.",
 				Optional:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -82,7 +92,10 @@ func (r *HQResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 				},
 			},
 			"git": schema.BoolAttribute{
-				Description: "Whether to initialize git in the HQ directory. Defaults to true.",
+				Description: "Controls whether git is initialized in the HQ directory during installation. " +
+					"Defaults to `true` (git is initialized). " +
+					"Immutable after creation; changing this value forces replacement of the resource. " +
+					"Corresponds to the `--git` flag of `gt install`.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(true),
@@ -91,7 +104,10 @@ func (r *HQResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 				},
 			},
 			"no_beads": schema.BoolAttribute{
-				Description: "Whether to skip beads initialization. Defaults to false.",
+				Description: "Controls whether beads issue tracking is initialized in the HQ. " +
+					"Defaults to `false` (beads are initialized). " +
+					"Immutable after creation; changing this value forces replacement of the resource. " +
+					"Corresponds to the `--no-beads` flag of `gt install`.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
@@ -100,7 +116,8 @@ func (r *HQResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 				},
 			},
 			"name": schema.StringAttribute{
-				Description: "The name of the town (read from mayor/town.json).",
+				Description: "Name of the town as configured in `mayor/town.json`, read from the workspace after installation. " +
+					"Computed at creation time from the town configuration; may change if the underlying town configuration is modified outside Terraform.",
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),

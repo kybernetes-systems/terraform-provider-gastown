@@ -49,16 +49,24 @@ func (r *RigResource) Metadata(_ context.Context, req resource.MetadataRequest, 
 
 func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		MarkdownDescription: "Manages a Gas Town rig within an HQ workspace. " +
+			"A rig is a deployable unit of work backed by a git repository; " +
+			"it contains configuration for ephemeral agents (polecasts) and may have crew assigned. " +
+			"Deletion calls `gt rig stop` followed by `gt rig dock` to persistently shut down the rig " +
+			"without removing its operational history (ADR 0003).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Description: "Unique identifier for the rig resource.",
+				Description: "Computed identifier for this rig resource, constructed as `<hq_path>/<name>`. " +
+					"Uniquely identifies the rig within the Terraform state.",
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"hq_path": schema.StringAttribute{
-				Description: "Path to the Gas Town HQ directory.",
+				Description: "Absolute filesystem path to the Gas Town HQ directory containing this rig. " +
+					"Immutable after creation; changing this value forces replacement of the resource " +
+					"(the rig is docked in the old HQ, a new rig is created in the new HQ).",
 				Required:    true,
 				Validators: []validator.String{
 					validators.PathValidator{},
@@ -68,7 +76,10 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				},
 			},
 			"name": schema.StringAttribute{
-				Description: "Name of the rig (used as identifier).",
+				Description: "Unique name for the rig within this HQ, used as the primary identifier in Gas Town operations. " +
+					"Immutable after creation; changing this value forces replacement of the resource " +
+					"(the existing rig is docked, a new one is created). " +
+					"Corresponds to the <name> argument of `gt rig add`.",
 				Required:    true,
 				Validators: []validator.String{
 					validators.SafeNameValidator{},
@@ -78,7 +89,9 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				},
 			},
 			"repo": schema.StringAttribute{
-				Description: "Git repository URL or local path for the rig.",
+				Description: "Git repository URL or local filesystem path that provides the rig's source configuration. " +
+					"Immutable after creation; changing this value forces replacement of the resource. " +
+					"Corresponds to the <repo> argument of `gt rig add`.",
 				Required:    true,
 				Validators: []validator.String{
 					validators.RepoURLValidator{},
@@ -88,7 +101,8 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				},
 			},
 			"runtime": schema.StringAttribute{
-				Description: "Runtime environment for the rig. Defaults to 'claude'.",
+				Description: "Runtime environment identifier for agents spawned by this rig (e.g., 'claude', 'openai'). " +
+					"Defaults to 'claude'. May be modified after creation without forcing replacement.",
 				Optional:    true,
 				Computed:    true,
 				Default:     stringdefault.StaticString("claude"),
@@ -97,7 +111,9 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				},
 			},
 			"max_polecats": schema.Int64Attribute{
-				Description: "Maximum number of polecats (workers) for the rig. Defaults to 3.",
+				Description: "Maximum number of polecat agents (ephemeral workers) this rig may spawn concurrently. " +
+					"Defaults to 3. Set to 0 to prevent any polecat spawning. " +
+					"Immutable after creation; changing this value forces replacement of the resource.",
 				Optional:    true,
 				Computed:    true,
 				Default:     int64default.StaticInt64(3),
@@ -106,14 +122,16 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				},
 			},
 			"status": schema.StringAttribute{
-				Description: "Current operational status of the rig.",
+				Description: "Current operational status of the rig as reported by `gt rig status` (e.g., 'operational', 'docked'). " +
+					"Computed from the live Gas Town state; may change outside Terraform if the rig is parked or docked via CLI.",
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"prefix": schema.StringAttribute{
-				Description: "Beads prefix assigned to this rig (read from gt rig status).",
+				Description: "Beads issue prefix assigned to this rig, read from `gt rig status` output after creation. " +
+					"Computed from Gas Town configuration; used to identify issues belonging to this rig in the beads system.",
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
