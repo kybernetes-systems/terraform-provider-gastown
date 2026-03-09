@@ -53,17 +53,24 @@ func (r *HQResource) Metadata(_ context.Context, req resource.MetadataRequest, r
 
 func (r *HQResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		MarkdownDescription: "Manages a Gas Town HQ installation—the root workspace where rigs and crews are orchestrated. " +
+			"An HQ encapsulates the Dolt-backed state database, service configuration, and Git repository structure " +
+			"needed to operate a Gas Town environment. Once created, the HQ path cannot be changed without replacement.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Description: "Unique identifier for the HQ resource. Same as the path.",
-				Computed:    true,
+				Description: "Unique identifier for the HQ resource, identical to the path attribute. " +
+					"Computed at creation time and remains stable throughout the resource lifecycle.",
+				Computed: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"path": schema.StringAttribute{
-				Description: "Filesystem path where the Gas Town HQ will be installed.",
-				Required:    true,
+				Description: "Absolute filesystem path where the Gas Town HQ will be installed and maintained. " +
+					"This directory will contain the mayor configuration, Dolt database, and associated service files. " +
+					"Changing this value after creation forces replacement of the entire HQ—Terraform will destroy " +
+					"the existing installation and create a new one at the specified path.",
+				Required: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -72,8 +79,10 @@ func (r *HQResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 				},
 			},
 			"owner_email": schema.StringAttribute{
-				Description: "Email address of the HQ owner.",
-				Optional:    true,
+				Description: "Email address of the HQ owner, used for Git configuration and administrative notifications. " +
+					"If unset, Gas Town defaults to the system user configuration. Changing this value after creation " +
+					"forces replacement of the HQ resource.",
+				Optional: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -82,26 +91,35 @@ func (r *HQResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 				},
 			},
 			"git": schema.BoolAttribute{
-				Description: "Whether to initialize git in the HQ directory. Defaults to true.",
-				Optional:    true,
-				Computed:    true,
-				Default:     booldefault.StaticBool(true),
+				Description: "Controls whether Git version control is initialized in the HQ directory. " +
+					"When true (the Gas Town system default), a Git repository is created with appropriate " +
+					"ignore patterns for operational data. Disabling Git is useful for ephemeral test environments. " +
+					"Defaults to true. Changing this value after creation forces replacement of the HQ resource.",
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(true),
 				PlanModifiers: []planmodifier.Bool{
 					boolplanmodifier.RequiresReplace(),
 				},
 			},
 			"no_beads": schema.BoolAttribute{
-				Description: "Whether to skip beads initialization. Defaults to false.",
-				Optional:    true,
-				Computed:    true,
-				Default:     booldefault.StaticBool(false),
+				Description: "When true, skips initialization of the beads issue tracking database during HQ creation. " +
+					"Useful for minimal installations where issue tracking is managed externally or not required. " +
+					"Defaults to false (beads are initialized by default). Changing this value after creation " +
+					"forces replacement of the HQ resource.",
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(false),
 				PlanModifiers: []planmodifier.Bool{
 					boolplanmodifier.RequiresReplace(),
 				},
 			},
 			"name": schema.StringAttribute{
-				Description: "The name of the town (read from mayor/town.json).",
-				Computed:    true,
+				Description: "The canonical name of this Gas Town installation, read from the mayor/town.json " +
+					"configuration file after HQ initialization. This value is determined by Gas Town during " +
+					"creation and reflects the town identity within the federation. Computed at creation time " +
+					"and remains stable unless manually modified outside Terraform.",
+				Computed: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
