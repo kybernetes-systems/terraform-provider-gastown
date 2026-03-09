@@ -12,3 +12,7 @@
 # Ignore local Dolt config
 .doltcfg/
 .beads/.doltcfg/
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db
