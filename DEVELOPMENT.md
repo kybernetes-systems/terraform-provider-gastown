@@ -35,6 +35,15 @@ Acceptance tests use `FakeRunner` by default. They verify the Terraform lifecycl
 ### Unit Tests
 Unit tests use `NewRunnerWithSetpgid` when real CLI calls are needed (e.g., testing `gt install`). They rely on `testutil.CleanupTestHQ` to "nuke" the entire process tree on completion.
 
+### Terraform mock_provider Tests (Terraform >= 1.7.0)
+The `tests/` directory contains Terraform-native tests using the `mock_provider` feature. These validate resource configurations and schema logic without requiring the `gt` CLI:
+
+```bash
+terraform test
+```
+
+See `tests/README.md` for details. These tests provide fast, credential-less feedback in CI and complement the Go-based acceptance tests.
+
 ## Operational Safety
 
 ### 1. Process Group Termination
