@@ -57,7 +57,8 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Description: "Computed identifier for this rig resource, constructed as `<hq_path>/<name>`. " +
-					"Uniquely identifies the rig within the Terraform state.",
+					"Derived from the HQ path and rig name at creation time. " +
+					"Uniquely identifies the rig within the Terraform state and corresponds to the rig's identity in Gas Town.",
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
@@ -122,8 +123,9 @@ func (r *RigResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				},
 			},
 			"status": schema.StringAttribute{
-				Description: "Current operational status of the rig as reported by `gt rig status` (e.g., 'operational', 'docked'). " +
-					"Computed from the live Gas Town state; may change outside Terraform if the rig is parked or docked via CLI.",
+				Description: "Current operational status of the rig as reported by `gt rig status` (e.g., 'operational', 'docked', 'parked'). " +
+					"Computed from the live Gas Town state and updated on every read. " +
+					"May change outside Terraform if the rig is parked, docked, or undocked via the `gt` CLI.",
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),

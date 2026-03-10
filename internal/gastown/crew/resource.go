@@ -53,6 +53,7 @@ func (r *CrewResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Description: "Computed identifier for this crew resource, constructed as `<hq_path>/<rig>/<name>`. " +
+					"Derived from the HQ path, rig name, and crew name at creation time. " +
 					"Uniquely identifies the crew member within the Terraform state.",
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
@@ -61,7 +62,9 @@ func (r *CrewResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 			"hq_path": schema.StringAttribute{
 				Description: "Absolute filesystem path to the Gas Town HQ directory containing the parent rig. " +
-					"Immutable after creation; changing this value forces replacement of the resource.",
+					"Immutable after creation; changing this value forces replacement of the resource " +
+					"(the crew is removed from the old HQ, a new one is created in the new HQ). " +
+					"Corresponds to the working directory context for all `gt` CLI operations.",
 				Required:    true,
 				Validators: []validator.String{
 					validators.PathValidator{},

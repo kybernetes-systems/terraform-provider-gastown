@@ -56,11 +56,12 @@ func (r *HQResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 		MarkdownDescription: "Manages a Gas Town HQ workspace installation. " +
 			"The HQ is the root operational context for all Gas Town resources; " +
 			"rigs and crew are created within an HQ. " +
-			"Deletion triggers `gt uninstall` to remove the workspace.",
+			"Corresponds to the `gt install` and `gt uninstall` CLI commands.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Description: "Computed identifier for this HQ resource, always identical to the path attribute. " +
-					"Corresponds to the filesystem location where the HQ is installed.",
+					"Derived from the filesystem location where the HQ is installed. " +
+					"Used to uniquely identify this HQ in Terraform state.",
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
