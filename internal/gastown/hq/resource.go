@@ -201,7 +201,14 @@ func (r *HQResource) Create(ctx context.Context, req resource.CreateRequest, res
 		_ = os.WriteFile(daemonConfigPath, data, 0644)
 	}
 
-	hqRunner := tfexec.NewRunner(hqPath)
+	// In order to correctly support tests without bypassing injected SafeRunner/FakeRunner,
+	// we want to use the configured runner, but ensure it points to the hqPath.
+	// The tests create a runner injected for this specific hqPath already.
+	hqRunner := runner
+	if hqRunner == nil || hqRunner.HQPath() == "" {
+		hqRunner = tfexec.NewRunner(hqPath)
+	}
+
 	if err := ensureUp(ctx, hqPath, hqRunner, &resp.Diagnostics); err != nil {
 		return
 	}
@@ -231,7 +238,10 @@ func (r *HQResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 		return
 	}
 
-	hqRunner := tfexec.NewRunner(hqPath)
+	hqRunner := r.runner
+	if hqRunner == nil || hqRunner.HQPath() == "" {
+		hqRunner = tfexec.NewRunner(hqPath)
+	}
 	// Ensure services are up during Read/Refresh, otherwise subsequent resource
 	// operations in the same plan will fail to connect to Dolt.
 	_ = ensureUp(ctx, hqPath, hqRunner, &resp.Diagnostics)

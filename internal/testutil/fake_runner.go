@@ -59,9 +59,14 @@ func (r *FakeRunner) GT(ctx context.Context, args ...string) (string, error) {
 	switch args[0] {
 	case "install":
 		return r.gtInstall(args[1:])
+	case "up":
+		return "ok", nil
+	case "status":
+		return "ok", nil
 	case "down":
 		return "ok", nil
 	case "uninstall":
+		os.RemoveAll(r.hqPath)
 		return "ok", nil
 	case "rig":
 		return r.gtRig(args[1:])
